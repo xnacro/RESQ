@@ -1,0 +1,218 @@
+/* resQ design tokens: the single source of truth for all visual values */
+
+:root {
+  /* Type families */
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  /* Type scale */
+  --fs-micro: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.625rem;
+  --fs-score: 2.75rem;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --tracking-label: 0.07em;
+  --tracking-tight: -0.01em;
+
+  /* Spacing, 4px base */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+
+  /* Radii */
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-tile: 16px;
+  --r-pill: 999px;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 240ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layer order */
+  --z-map: 0;
+  --z-map-data: 10;
+  --z-map-chrome: 20;
+  --z-panel: 30;
+  --z-topbar: 40;
+  --z-overlay: 50;
+  --z-toast: 60;
+
+  /* Always legible on a solid risk colour, in either theme */
+  --text-on-risk: #ffffff;
+
+  /* Layout */
+  --topbar-h: 60px;
+  --panel-w: 400px;
+  --inset: 0.75rem;
+  --control-h: 34px;
+}
+
+/* Default theme: warm charcoal page frame carrying two raised sand tiles */
+:root {
+  --page-bg: #4a443a;
+  --page-bg-deep: #35302a;
+  --page-text: #f7f2e9;
+  --page-text-muted: rgba(247, 242, 233, 0.72);
+  --page-surface: rgba(247, 242, 233, 0.12);
+  --page-surface-hover: rgba(247, 242, 233, 0.2);
+  --page-border: rgba(247, 242, 233, 0.24);
+
+  --tile-bg: #e0d4c0;
+
+  /* Surfaces inside a tile */
+  --bg: #e0d4c0;
+  --bg-deep: #cfc0a6;
+  --surface: #ebe3d5;
+  --surface-raised: #f4eee4;
+  --surface-sunken: #d6c8b1;
+  --panel-solid: #e0d4c0;
+  --panel-bg: rgba(224, 212, 192, 0.94);
+  --panel-blur: 14px;
+  --scrim: rgba(22, 19, 15, 0.62);
+
+  /* Map substrate */
+  --map-wash: #e9dfcd;
+  --map-vignette: rgba(112, 96, 68, 0.22);
+
+  /* Lines */
+  --border: #c3b49a;
+  --border-subtle: rgba(195, 180, 154, 0.65);
+  --border-strong: #a89876;
+
+  /* Text on a tile */
+  --text: #26221d;
+  --text-muted: #6b6155;
+  --text-faint: #948a7c;
+  --text-on-accent: #ffffff;
+
+  /* Accent, reserved for interaction, selection and focus.
+     Teal is the one hue that stays clear of all four risk colours. */
+  --accent: #0e7490;
+  --accent-strong: #0b5a70;
+  --accent-line: rgba(14, 116, 144, 0.45);
+  --accent-wash: rgba(14, 116, 144, 0.1);
+  --focus-ring: rgba(14, 116, 144, 0.6);
+
+  /* Risk: -solid paints fills and swatches, the base token inks text */
+  --risk-low: #15803d;
+  --risk-moderate: #a16207;
+  --risk-high: #c2410c;
+  --risk-critical: #b91c1c;
+  --risk-low-solid: #22c55e;
+  --risk-moderate-solid: #eab308;
+  --risk-high-solid: #f97316;
+  --risk-critical-solid: #ef4444;
+  --risk-low-edge: rgba(21, 128, 61, 0.5);
+  --risk-moderate-edge: rgba(161, 98, 7, 0.5);
+  --risk-high-edge: rgba(194, 65, 12, 0.5);
+  --risk-critical-edge: rgba(185, 28, 28, 0.5);
+  --risk-low-fill: rgba(34, 197, 94, 0.3);
+  --risk-moderate-fill: rgba(234, 179, 8, 0.32);
+  --risk-high-fill: rgba(249, 115, 22, 0.3);
+  --risk-critical-fill: rgba(239, 68, 68, 0.3);
+  --risk-low-wash: rgba(34, 197, 94, 0.16);
+  --risk-moderate-wash: rgba(234, 179, 8, 0.18);
+  --risk-high-wash: rgba(249, 115, 22, 0.16);
+  --risk-critical-wash: rgba(239, 68, 68, 0.16);
+
+  /* Elevation, tiles read as raised slabs on the page */
+  --shadow-tile:
+    inset 0 1px 0 rgba(255, 252, 246, 0.6), 0 1px 2px rgba(26, 22, 16, 0.26),
+    0 10px 22px rgba(26, 22, 16, 0.24), 0 28px 56px rgba(26, 22, 16, 0.22);
+  --shadow-panel: 0 1px 2px rgba(12, 10, 7, 0.16), 0 8px 24px rgba(12, 10, 7, 0.16);
+  --shadow-overlay: 0 24px 64px rgba(12, 10, 7, 0.5);
+}
+
+/* Original operations theme, kept for a one attribute revert */
+[data-theme='ops'] {
+  --page-bg: #0b1220;
+  --page-bg-deep: #070d18;
+  --page-text: #f8fafc;
+  --page-text-muted: #94a3b8;
+  --page-surface: #16233a;
+  --page-surface-hover: #24334a;
+  --page-border: #334155;
+
+  --tile-bg: #0f1829;
+
+  --bg: #0b1220;
+  --bg-deep: #070d18;
+  --surface: #1e293b;
+  --surface-raised: #24334a;
+  --surface-sunken: #16233a;
+  --panel-solid: #0f1829;
+  --panel-bg: rgba(16, 26, 43, 0.92);
+  --scrim: rgba(7, 13, 24, 0.78);
+
+  --map-wash: #101c30;
+  --map-vignette: rgba(7, 13, 24, 0.55);
+
+  --border: #334155;
+  --border-subtle: rgba(51, 65, 85, 0.55);
+  --border-strong: #415068;
+
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --text-on-accent: #04202a;
+
+  --accent: #22d3ee;
+  --accent-strong: #06b6d4;
+  --accent-line: rgba(34, 211, 238, 0.38);
+  --accent-wash: rgba(34, 211, 238, 0.1);
+  --focus-ring: rgba(34, 211, 238, 0.55);
+
+  --risk-low: #22c55e;
+  --risk-moderate: #eab308;
+  --risk-high: #f97316;
+  --risk-critical: #ef4444;
+  --risk-low-solid: #22c55e;
+  --risk-moderate-solid: #eab308;
+  --risk-high-solid: #f97316;
+  --risk-critical-solid: #ef4444;
+  --risk-low-edge: rgba(34, 197, 94, 0.55);
+  --risk-moderate-edge: rgba(234, 179, 8, 0.55);
+  --risk-high-edge: rgba(249, 115, 22, 0.55);
+  --risk-critical-edge: rgba(239, 68, 68, 0.55);
+  --risk-low-fill: rgba(34, 197, 94, 0.18);
+  --risk-moderate-fill: rgba(234, 179, 8, 0.18);
+  --risk-high-fill: rgba(249, 115, 22, 0.18);
+  --risk-critical-fill: rgba(239, 68, 68, 0.18);
+  --risk-low-wash: rgba(34, 197, 94, 0.1);
+  --risk-moderate-wash: rgba(234, 179, 8, 0.1);
+  --risk-high-wash: rgba(249, 115, 22, 0.1);
+  --risk-critical-wash: rgba(239, 68, 68, 0.1);
+
+  --shadow-tile: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.42);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+@media (max-width: 1279px) {
+  :root {
+    --panel-w: 340px;
+  }
+}

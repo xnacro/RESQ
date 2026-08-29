@@ -1,0 +1,201 @@
+/* Reset and global baseline. Component styling lives in CSS modules. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--tracking-tight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+#root {
+  isolation: isolate;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+svg {
+  display: block;
+  flex: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Numeric data always reads as instrumentation */
+.mono,
+code,
+kbd {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
+}
+
+/* Small uppercase label, used for section headers only */
+.label {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+::selection {
+  background: var(--accent-line);
+  color: var(--text);
+}
+
+/* Risk band contract: set data-risk, then consume the risk vars.
+   --risk-color inks text, --risk-solid paints swatches and fills. */
+[data-risk='LOW'] {
+  --risk-color: var(--risk-low);
+  --risk-solid: var(--risk-low-solid);
+  --risk-edge: var(--risk-low-edge);
+  --risk-fill: var(--risk-low-fill);
+  --risk-wash: var(--risk-low-wash);
+}
+
+[data-risk='MODERATE'] {
+  --risk-color: var(--risk-moderate);
+  --risk-solid: var(--risk-moderate-solid);
+  --risk-edge: var(--risk-moderate-edge);
+  --risk-fill: var(--risk-moderate-fill);
+  --risk-wash: var(--risk-moderate-wash);
+}
+
+[data-risk='HIGH'] {
+  --risk-color: var(--risk-high);
+  --risk-solid: var(--risk-high-solid);
+  --risk-edge: var(--risk-high-edge);
+  --risk-fill: var(--risk-high-fill);
+  --risk-wash: var(--risk-high-wash);
+}
+
+[data-risk='CRITICAL'] {
+  --risk-color: var(--risk-critical);
+  --risk-solid: var(--risk-critical-solid);
+  --risk-edge: var(--risk-critical-edge);
+  --risk-fill: var(--risk-critical-fill);
+  --risk-wash: var(--risk-critical-wash);
+}
+
+[data-risk='UNKNOWN'] {
+  --risk-color: var(--text-faint);
+  --risk-solid: var(--text-faint);
+  --risk-edge: var(--border-strong);
+  --risk-fill: rgba(120, 116, 139, 0.18);
+  --risk-wash: rgba(120, 116, 139, 0.1);
+}
+
+/* Scrollbars kept quiet so panels stay calm */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

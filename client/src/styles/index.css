@@ -1,0 +1,5 @@
+/* Global stylesheet entry, imported once from main.jsx */
+
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
