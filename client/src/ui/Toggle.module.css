@@ -1,0 +1,74 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 28px;
+}
+
+.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.labelGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.label {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+
+.description {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.track {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition:
+    transform var(--dur) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.on {
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+}
+
+.on .thumb {
+  background: var(--accent);
+  transform: translateX(16px);
+}

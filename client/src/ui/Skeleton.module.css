@@ -1,0 +1,18 @@
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-raised) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s var(--ease) infinite;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}

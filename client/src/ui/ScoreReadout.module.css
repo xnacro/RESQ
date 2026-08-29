@@ -1,0 +1,58 @@
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.valueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.score {
+  font-size: var(--fs-score);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--risk-color);
+}
+
+.md .score {
+  font-size: var(--fs-xl);
+}
+
+.sm .score {
+  font-size: var(--fs-lg);
+}
+
+.denominator {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.bandRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.bandBar {
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--risk-solid);
+}
+
+.band {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-label);
+  color: var(--risk-color);
+}
+
+.caption {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}

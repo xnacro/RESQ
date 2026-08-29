@@ -1,0 +1,132 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: var(--control-h);
+  padding: 0 var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.text {
+  line-height: 1;
+}
+
+.sm {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-xs);
+}
+
+.md {
+  height: var(--control-h);
+}
+
+.lg {
+  height: 42px;
+  padding: 0 var(--sp-5);
+  font-size: var(--fs-base);
+}
+
+.block {
+  width: 100%;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: var(--fw-semibold);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.outline:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.emergency {
+  background: var(--risk-critical-solid);
+  color: var(--text-on-risk);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+
+.emergency:hover:not(:disabled) {
+  background: var(--risk-critical);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.icon_sm {
+  width: 28px;
+  height: 28px;
+}
+
+.icon_md {
+  width: var(--control-h);
+  height: var(--control-h);
+}
+
+.iconButton:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.iconButton.active {
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}

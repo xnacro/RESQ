@@ -1,0 +1,33 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-height: 24px;
+}
+
+.key {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.value {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.risk {
+  color: var(--risk-color);
+  font-weight: var(--fw-medium);
+}

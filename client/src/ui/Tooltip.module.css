@@ -1,0 +1,49 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.bubble {
+  position: absolute;
+  z-index: var(--z-toast);
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-panel);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fade var(--dur-fast) var(--ease);
+}
+
+.top {
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.bottom {
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.left {
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.right {
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
