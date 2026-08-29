@@ -383,6 +383,11 @@ export const getGridByPoint = async (lat, lon, stateKey = null) => {
 
     const query = `
       SELECT id, grid_id, state, district, block, center_lat, center_lon,
+             elevation_mean, elevation_min, elevation_max, slope_mean,
+             distance_to_river, waterbody_percentage,
+             flood_susceptibility, landslide_susceptibility, seismic_risk,
+             population_density, infrastructure_exposure,
+             static_risk, dynamic_risk, risk_score, risk_confidence, risk_status,
              ST_AsGeoJSON(geom)::json AS geometry
       FROM grid_500m.${config.tableName}
       WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))
@@ -404,6 +409,11 @@ export const getGridsByGeometry = async (geoJsonGeometry, stateKey = "Assam", li
 
   const query = `
     SELECT id, grid_id, state, district, block, center_lat, center_lon,
+           elevation_mean, elevation_min, elevation_max, slope_mean,
+           distance_to_river, waterbody_percentage,
+           flood_susceptibility, landslide_susceptibility, seismic_risk,
+           population_density, infrastructure_exposure,
+           static_risk, dynamic_risk, risk_score, risk_confidence, risk_status,
            ST_AsGeoJSON(geom)::json AS geometry
     FROM grid_500m.${config.tableName}
     WHERE ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON($1), 4326))

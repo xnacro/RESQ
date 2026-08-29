@@ -9,6 +9,16 @@ dist-ssr/
 .env.*
 !.env.example
 
+# Raw Data and Datasets
+data/
+*.7z
+*.geojsonl
+*.tif
+*.tiff
+*.shp
+*.dbf
+*.shx
+
 # Python
 venv/
 .venv/
