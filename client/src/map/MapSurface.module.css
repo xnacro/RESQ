@@ -1,0 +1,54 @@
+.surface {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-map);
+  overflow: hidden;
+  background: var(--bg);
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.surface:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.dragging {
+  cursor: grabbing;
+}
+
+/* Placeholder substrate, replaced when the real map service mounts */
+.basemap {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 50% 40%, var(--map-wash) 0%, var(--bg) 62%, var(--bg-deep) 100%);
+}
+
+.mount {
+  position: absolute;
+  inset: 0;
+}
+
+/* Once the real map service attaches a node, the placeholder steps aside */
+.mount:not(:empty) + .basemap {
+  display: none;
+}
+
+.overlays {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-map-data);
+  pointer-events: none;
+}
+
+.overlays > * {
+  pointer-events: auto;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(130% 90% at 50% 50%, transparent 58%, var(--map-vignette) 100%);
+}

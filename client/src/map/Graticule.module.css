@@ -1,0 +1,12 @@
+.graticule {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lines line {
+  stroke: var(--border);
+  stroke-width: 1;
+  opacity: 0.16;
+  shape-rendering: crispEdges;
+}
