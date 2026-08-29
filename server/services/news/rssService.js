@@ -2,7 +2,6 @@
 // Fetches, parses, deduplicates, and stores raw news items from configured RSS sources
 import https from "https";
 import http from "http";
-import url from "url";
 import crypto from "crypto";
 import pool from "../../config/db.js";
 import { RSS_SOURCES } from "./rssConfig.js";
@@ -28,6 +27,7 @@ export const syncRssSources = async () => {
           name = EXCLUDED.name,
           url = EXCLUDED.url,
           region = EXCLUDED.region,
+          source_type = EXCLUDED.source_type,
           reliability_tier = EXCLUDED.reliability_tier,
           enabled = EXCLUDED.enabled;
       `,
@@ -46,7 +46,13 @@ export function fetchFeedXml(feedUrl, maxRedirects = 3) {
       return reject(new Error("Too many redirects"));
     }
 
-    const parsed = url.parse(feedUrl);
+    let parsed;
+    try {
+      parsed = new URL(feedUrl);
+    } catch (e) {
+      return reject(new Error(`Invalid URL: ${feedUrl}`));
+    }
+
     const client = parsed.protocol === "https:" ? https : http;
 
     const req = client.get(
@@ -62,7 +68,7 @@ export function fetchFeedXml(feedUrl, maxRedirects = 3) {
       (res) => {
         // Handle HTTP redirects
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          const redirectUrl = url.resolve(feedUrl, res.headers.location);
+          const redirectUrl = new URL(res.headers.location, feedUrl).href;
           return resolve(fetchFeedXml(redirectUrl, maxRedirects - 1));
         }
 
@@ -145,7 +151,7 @@ export function parseRssXml(xmlText) {
   return items;
 }
 
-// Ingests an individual RSS source feed and persists new items
+// Ingests an individual RSS source feed and persists new items in a fast bulk transaction
 export const ingestSingleFeed = async (sourceConfig) => {
   const result = {
     sourceId: sourceConfig.id,
@@ -162,33 +168,43 @@ export const ingestSingleFeed = async (sourceConfig) => {
     const parsedItems = parseRssXml(xml);
     result.fetched = parsedItems.length;
 
-    for (const item of parsedItems) {
-      const hash = computeItemHash(sourceConfig.id, item.url, item.title, item.description);
+    if (parsedItems.length > 0) {
+      // Chunk bulk inserts into batches of 40 to stay well under parameter limits
+      const chunkSize = 40;
+      for (let i = 0; i < parsedItems.length; i += chunkSize) {
+        const chunk = parsedItems.slice(i, i + chunkSize);
+        const values = [];
+        const placeholders = [];
+        let pIdx = 1;
 
-      const insertRes = await client.query(
-        `
-        INSERT INTO news.rss_items (
-          source_id, guid, title, description, content, url, published_at, language, content_hash, processing_status
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'NEW')
-        ON CONFLICT (content_hash) DO NOTHING
-        RETURNING id;
-      `,
-        [
-          sourceConfig.id,
-          item.guid,
-          item.title,
-          item.description,
-          item.content,
-          item.url,
-          item.publishedAt,
-          sourceConfig.language || "en",
-          hash,
-        ]
-      );
+        for (const item of chunk) {
+          const hash = computeItemHash(sourceConfig.id, item.url, item.title, item.description);
+          placeholders.push(`($${pIdx}, $${pIdx + 1}, $${pIdx + 2}, $${pIdx + 3}, $${pIdx + 4}, $${pIdx + 5}, $${pIdx + 6}, $${pIdx + 7}, $${pIdx + 8}, 'NEW')`);
+          values.push(
+            sourceConfig.id,
+            item.guid,
+            item.title,
+            item.description,
+            item.content,
+            item.url,
+            item.publishedAt,
+            sourceConfig.language || "en",
+            hash
+          );
+          pIdx += 9;
+        }
 
-      if (insertRes.rows.length > 0) {
-        result.newItems++;
+        const insertQuery = `
+          INSERT INTO news.rss_items (
+            source_id, guid, title, description, content, url, published_at, language, content_hash, processing_status
+          )
+          VALUES ${placeholders.join(", ")}
+          ON CONFLICT (content_hash) DO NOTHING
+          RETURNING id;
+        `;
+
+        const insertRes = await client.query(insertQuery, values);
+        result.newItems += insertRes.rows.length;
       }
     }
 

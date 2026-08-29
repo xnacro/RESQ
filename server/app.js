@@ -4,6 +4,7 @@ import cors from "cors";
 import pool from "./config/db.js";
 import gridRoutes from "./routes/gridRoutes.js";
 import newsRoutes from "./routes/newsRoutes.js";
+import { startNewsScheduler } from "./services/news/newsSchedulerService.js";
 
 dotenv.config();
 
@@ -27,6 +28,12 @@ app.listen(PORT, async () => {
   try {
     await pool.query("SELECT NOW()");
     console.log("Database connected successfully");
+
+    // Start background news ingestion cron if enabled in environment
+    if (process.env.ENABLE_NEWS_CRON === "true") {
+      const cronInterval = parseInt(process.env.NEWS_CRON_INTERVAL_MINUTES || "15", 10);
+      startNewsScheduler(cronInterval, false);
+    }
   } catch (error) {
     console.error("Database connection failed:", error.message);
   }

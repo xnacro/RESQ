@@ -15,12 +15,12 @@ export const initNewsAndEventSchemas = async () => {
     // 2. RSS Sources Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS news.rss_sources (
-        id VARCHAR(50) PRIMARY KEY,
+        id VARCHAR(100) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         url TEXT NOT NULL,
         language VARCHAR(20) DEFAULT 'en',
         region VARCHAR(100) DEFAULT 'Northeast India',
-        source_type VARCHAR(50) DEFAULT 'REGIONAL_NEWS',
+        source_type VARCHAR(100) DEFAULT 'REGIONAL_NEWS',
         reliability_tier INTEGER DEFAULT 2,
         enabled BOOLEAN DEFAULT TRUE,
         last_polled_at TIMESTAMPTZ,
@@ -33,8 +33,8 @@ export const initNewsAndEventSchemas = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS news.rss_items (
         id BIGSERIAL PRIMARY KEY,
-        source_id VARCHAR(50) REFERENCES news.rss_sources(id) ON DELETE SET NULL,
-        guid VARCHAR(500),
+        source_id VARCHAR(100) REFERENCES news.rss_sources(id) ON DELETE SET NULL,
+        guid TEXT,
         title TEXT NOT NULL,
         description TEXT,
         content TEXT,

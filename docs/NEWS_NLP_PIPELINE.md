@@ -5,31 +5,31 @@
 The RESQ disaster intelligence system fuses static geospatial baselines with live multi-source situational awareness. While the **500m × 500m Grid Single Source of Truth (SSOT)** provides static susceptibility across terrain, hydrology, and zonation, the **News & NLP Ingestion Pipeline** extracts, verifies, and geolocates real-time incident intelligence across Assam and Meghalaya.
 
 ```
-RAW RSS FEEDS (Sentinel, EastMojo, NE Now, Shillong Times, PIB)
-                            │
-                            ▼
-           news.rss_items (Content-Hashed Deduplication)
-                            │
-                            ▼
-          Fast Lexical Pre-Filter (Noise / Whitelist)
-                            │
-                            ▼
-          Rule-Based NLP & Linguistic Entity Extraction
-                            │
-                            ▼
-        Spatial Geocoding & Coordinate Resolution (PostGIS)
-                            │
-                            ▼
-           disaster.news_events & Multi-Source Clusters
-                            │
-                            ▼
-       PostGIS Spatial Buffer & Distance Decay Attribution
-                            │
-                            ▼
-          disaster.event_grid_links (500m Grid Association)
-                            │
-                            ▼
-      grid_500m.assam / grid_500m.meghalaya (dynamic_risk)
+RAW RSS FEEDS (Sentinel, Shillong Times, Hub News, EastMojo, NE Now, Google News, PIB)
+                                        │
+                                        ▼
+                       news.rss_items (Chunked Bulk Deduplication)
+                                        │
+                                        ▼
+                      Fast Lexical Pre-Filter (Noise / Whitelist)
+                                        │
+                                        ▼
+                      Rule-Based NLP & Linguistic Entity Extraction
+                                        │
+                                        ▼
+                    Spatial Geocoding & Coordinate Resolution (PostGIS)
+                                        │
+                                        ▼
+                       disaster.news_events & Multi-Source Clusters
+                                        │
+                                        ▼
+                   PostGIS Spatial Buffer & Distance Decay Attribution
+                                        │
+                                        ▼
+                      disaster.event_grid_links (500m Grid Association)
+                                        │
+                                        ▼
+                  grid_500m.assam / grid_500m.meghalaya (dynamic_risk)
 ```
 
 ---
@@ -43,9 +43,32 @@ RESQ enforces strict epistemic bounds when processing unverified media and news 
 
 ---
 
-## 3. Controlled Vocabularies & Schemas
+## 3. Configured RSS Feeds & Regional Coverage
 
-### 3.1 Controlled Vocabularies
+The RSS feeds are centrally configured in [server/services/news/rssConfig.js](file:///f:/RESQ/server/services/news/rssConfig.js) and synced with table `news.rss_sources`:
+
+### 3.1 Assam State Feeds
+- **The Sentinel Assam**: `https://www.sentinelassam.com/feed` (Regional News - Tier 2)
+- **Google News Assam Flood Monitor**: `https://news.google.com/rss/search?q=Assam+flood+OR+landslide+OR+disaster&hl=en-IN&gl=IN&ceid=IN:en` (Aggregator - Tier 2)
+- **Google News Guwahati Urban Alert**: `https://news.google.com/rss/search?q=Guwahati+flood+OR+waterlogging+OR+submerged&hl=en-IN&gl=IN&ceid=IN:en` (Aggregator - Tier 2)
+- **Google News Barak Valley & Silchar Flood Monitor**: `https://news.google.com/rss/search?q=Barak+valley+flood+OR+Silchar+flood+OR+Cachar&hl=en-IN&gl=IN&ceid=IN:en` (Aggregator - Tier 2)
+- **Press Information Bureau (PIB) Guwahati**: `https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=11` (Official Bulletin - Tier 1)
+
+### 3.2 Meghalaya State Feeds
+- **The Shillong Times**: `https://theshillongtimes.com/feed/` (Regional News - Tier 2)
+- **Hub News Meghalaya**: `https://hubnetwork.in/feed/` (Regional News - Tier 2)
+- **Google News Meghalaya Landslide & Road Closure**: `https://news.google.com/rss/search?q=Meghalaya+landslide+OR+flood+OR+road+blockage+OR+Shillong&hl=en-IN&gl=IN&ceid=IN:en` (Aggregator - Tier 2)
+
+### 3.3 Northeast Regional Multi-Hazard Feeds
+- **Northeast Now**: `https://nenow.in/feed` (Regional News - Tier 2)
+- **EastMojo**: `https://www.eastmojo.com/feed/` (Regional News - Tier 2)
+- **Google News Northeast Highway & Corridor Disruptions**: `https://news.google.com/rss/search?q=Guwahati+Shillong+highway+OR+NH-27+blocked+OR+bridge+collapsed+Assam&hl=en-IN&gl=IN&ceid=IN:en` (Aggregator - Tier 2)
+
+---
+
+## 4. Controlled Vocabularies & Schemas
+
+### 4.1 Controlled Vocabularies
 
 #### Hazard Categories (`HAZARD_TYPES`)
 - `FLOOD`
@@ -85,22 +108,22 @@ RESQ enforces strict epistemic bounds when processing unverified media and news 
 
 ---
 
-## 4. PostGIS Database Schemas
+## 5. PostGIS Database Schemas
 
-### 4.1 `news.rss_sources`
+### 5.1 `news.rss_sources`
 Tracks RSS endpoints, polling frequencies, regions, and reliability tiers:
 - `reliability_tier = 1`: Official Government Bulletins (ASDMA, NDMA, PIB)
-- `reliability_tier = 2`: Established Regional News Media (Sentinel Assam, Shillong Times, EastMojo, NE Now)
+- `reliability_tier = 2`: Established Regional News Media & Topic Feeds
 - `reliability_tier = 3`: Aggregators & Unofficial Feeds
 
-### 4.2 `news.rss_items`
+### 5.2 `news.rss_items`
 Stores raw ingested feed items with deterministic SHA-256 deduplication:
 ```sql
 content_hash = SHA256(source_id || '|' || url || '|' || title || '|' || description)
 ```
 Status lifecycle: `NEW` $\to$ `FILTERED` | `NLP_PROCESSED` | `GRID_LINKED` | `FAILED`.
 
-### 4.3 `disaster.news_events`
+### 5.3 `disaster.news_events`
 Stores structured disaster events extracted by the NLP engine:
 - `geom`: Point geometry in EPSG:4326 with PostGIS GiST index.
 - `severity`: Standardized severity score ($0 \le S \le 100$).
@@ -108,48 +131,25 @@ Stores structured disaster events extracted by the NLP engine:
 - `road_blocked` / `bridge_damaged` / `bridge_closed`: Operational routing flags.
 - `valid_until`: Automatic expiration timestamp (default $T_{now} + 48\text{h}$).
 
-### 4.4 `disaster.event_grid_links`
+### 5.4 `disaster.event_grid_links`
 Spatial link table connecting each disaster event to all affected 500m grid cells:
 - `impact_score`: Distance-decayed hazard intensity ($0 \le I \le 100$).
 
-### 4.5 `disaster.event_clusters`
+### 5.5 `disaster.event_clusters`
 Maintains spatio-temporal clusters of corroborated reports across multiple independent news sources.
 
 ---
 
-## 5. NLP Extraction & Entity Resolution Engine
+## 6. Automated Background Cron Scheduler
 
-### 5.1 Pre-Filtering & Noise Rejection
-- Evaluates weighted lexical markers for flood, landslide, earthquake, and infrastructure impacts.
-- Applies strict word-boundary noise filters (`\bipl\b`, `\bcricket\b`, `\bpolitics\b`, `\btraffic congestion due to peak hours\b`).
+The system includes a dedicated cron scheduler in [server/services/news/newsSchedulerService.js](file:///f:/RESQ/server/services/news/newsSchedulerService.js):
 
-### 5.2 Named Entity Recognition (NER) & Gazetteers
-- **35 Assam Districts**: Instant in-memory centroid lookup.
-- **12 Meghalaya Districts**: Instant in-memory centroid lookup.
-- **150+ Key Towns & Localities**: Guwahati, Dispur, Boko, Lanka, Silchar, Tezpur, Jorhat, Dibrugarh, Tura, Shillong, Nongpoh, Cherrapunji, etc.
-- **Major Regional Rivers**: Brahmaputra, Barak, Kopili, Subansiri, Jia Bharali, Simsang, Umngot, Umiam, etc.
-- **Key Transport Corridors**: NH-27, NH-6 (GS Road), NH-37 (Assam Trunk Road), NH-17, NH-217.
-
-### 5.3 Distance-Decay Impact Formulation
-
-For a disaster event at $(x_e, y_e)$ with severity $S$, confidence $C$, and buffer radius $R_b$ ($2500\text{m}$ for roads, $1500\text{m}$ for point assets):
-
-$$\text{Decay}(d) = \max\left(0.2, 1.0 - \frac{d}{R_b}\right)$$
-
-$$\text{Impact Score} = S \times C \times \text{Decay}(d)$$
-
----
-
-## 6. Multi-Source Corroboration Engine
-
-When multiple news outlets report on the same event:
-- **Spatial clustering**: Within $15\text{km}$ radius.
-- **Temporal window**: Within $72\text{hours}$.
-- **Confidence boost**:
-  - $N=1$ report: $C = C_{base}$
-  - $N=2$ independent reports: $C = \min(0.98, C_{base} + 0.15)$
-  - $N \ge 3$ reports: $C = \min(0.98, C_{base} + 0.25)$
-  - Tier 1 Government bulletin: $C = \min(0.98, \max(C, 0.90))$
+- **Automatic Startup**: Controlled via `ENABLE_NEWS_CRON=true` and `NEWS_CRON_INTERVAL_MINUTES=15` in `server/.env`.
+- **Pipeline Execution**:
+  1. Polls all active RSS feeds with chunked bulk insertion.
+  2. Runs NLP disaster extraction, classification, and coordinate resolution on pending items.
+  3. Links affected 500m grid cells and updates dynamic factors (`news_risk`, `nlp_event_risk`, `road_closure_risk`).
+  4. Maintains real-time execution statistics (`totalRuns`, `lastRunAt`, `nextRunAt`, `metrics`).
 
 ---
 
@@ -163,8 +163,12 @@ When multiple news outlets report on the same event:
 | `/api/news/events/active` | `GET` | List currently active disaster events |
 | `/api/news/events/:id` | `GET` | Get single disaster event with all linked 500m grid cells |
 | `/api/news/events/grid/:gridId` | `GET` | Get all active events impacting a specific 500m grid cell |
-| `/api/news/poll` | `POST` | Trigger background polling of all enabled RSS feeds |
+| `/api/news/poll` | `POST` | Trigger manual polling of all enabled RSS feeds |
 | `/api/news/process-pending` | `POST` | Trigger NLP extraction & grid linking on un-extracted items |
+| `/api/news/cron/status` | `GET` | Get background cron scheduler status and metrics |
+| `/api/news/cron/start` | `POST` | Start automated background cron scheduler |
+| `/api/news/cron/stop` | `POST` | Stop automated background cron scheduler |
+| `/api/news/cron/run-now` | `POST` | Trigger an immediate end-to-end cron pipeline cycle |
 
 ---
 

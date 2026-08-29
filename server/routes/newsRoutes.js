@@ -8,6 +8,12 @@ import {
   getDisasterEventById,
   getEventsForGrid,
 } from "../services/news/newsEventService.js";
+import {
+  startNewsScheduler,
+  stopNewsScheduler,
+  runPipelineCycle,
+  getSchedulerStatus,
+} from "../services/news/newsSchedulerService.js";
 
 const router = express.Router();
 
@@ -110,7 +116,7 @@ router.get("/events", async (req, res) => {
   }
 });
 
-// POST /api/news/poll - Trigger polling of all enabled RSS sources
+// POST /api/news/poll - Trigger manual polling of all enabled RSS sources
 router.post("/poll", async (req, res) => {
   try {
     console.log("⚡ Triggered RSS polling via API endpoint...");
@@ -128,6 +134,47 @@ router.post("/process-pending", async (req, res) => {
     console.log(`⚡ Processing up to ${batchSize} pending RSS items via API endpoint...`);
     const summary = await processPendingNewsItems(parseInt(batchSize, 10));
     res.json({ success: true, message: "Pending news NLP processing completed", summary });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/news/cron/status - Get background cron scheduler status and metrics
+router.get("/cron/status", (req, res) => {
+  try {
+    const status = getSchedulerStatus();
+    res.json({ success: true, ...status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/news/cron/start - Start automated background cron scheduler
+router.post("/cron/start", (req, res) => {
+  try {
+    const { intervalMinutes = 15, runImmediately = true } = req.body;
+    const status = startNewsScheduler(parseInt(intervalMinutes, 10), runImmediately === true);
+    res.json({ success: true, message: "News scheduler started", ...status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/news/cron/stop - Stop automated background cron scheduler
+router.post("/cron/stop", (req, res) => {
+  try {
+    const status = stopNewsScheduler();
+    res.json({ success: true, message: "News scheduler stopped", ...status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/news/cron/run-now - Trigger an immediate end-to-end cron pipeline cycle
+router.post("/cron/run-now", async (req, res) => {
+  try {
+    const result = await runPipelineCycle();
+    res.json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
