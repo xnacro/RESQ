@@ -1,0 +1,139 @@
+/* Sits directly on the page frame, so it uses the page colour set */
+.bar {
+  position: relative;
+  z-index: var(--z-topbar);
+  flex: none;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-4);
+  background: transparent;
+  color: var(--page-text);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+}
+
+.brandName {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+  color: var(--page-text);
+}
+
+.search {
+  flex: 1;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.searchControl {
+  height: 38px;
+  background: var(--page-surface);
+  border-color: var(--page-border);
+  color: var(--page-text);
+}
+
+.searchControl:hover {
+  border-color: var(--page-text-muted);
+}
+
+.searchControl:focus-within {
+  background: var(--page-surface-hover);
+  border-color: var(--page-text);
+}
+
+.searchControl input {
+  color: var(--page-text);
+}
+
+.searchControl input::placeholder {
+  color: var(--page-text-muted);
+}
+
+.searchControl svg {
+  color: var(--page-text-muted);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: none;
+  margin-left: auto;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 3px;
+  background: var(--page-surface);
+  border: 1px solid var(--page-border);
+  border-radius: var(--r-md);
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--page-text-muted);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.navLink:hover {
+  color: var(--page-text);
+}
+
+.navLinkActive {
+  color: var(--page-bg);
+  background: var(--page-text);
+}
+
+.sos {
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 8px rgba(12, 10, 7, 0.35);
+}
+
+@media (max-width: 1023px) {
+  .bar {
+    gap: var(--sp-3);
+  }
+
+  .search {
+    max-width: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .bar {
+    gap: var(--sp-2);
+    padding: 0 var(--sp-2) 0 var(--sp-3);
+  }
+
+  .nav,
+  .search {
+    display: none;
+  }
+
+  .brandName {
+    font-size: var(--fs-base);
+  }
+}
+
+@media (max-width: 400px) {
+  .sosLabel {
+    display: none;
+  }
+}
