@@ -1,0 +1,32 @@
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+/* Raised tile carrying the map */
+.mapArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--tile-bg);
+  border-radius: var(--r-tile);
+  box-shadow: var(--shadow-tile);
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .screen {
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-2) var(--sp-2);
+  }
+
+  .mapArea {
+    flex: 1;
+    min-height: 0;
+  }
+}

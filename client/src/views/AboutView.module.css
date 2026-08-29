@@ -1,0 +1,141 @@
+.page {
+  position: absolute;
+  inset: 0 var(--sp-3) var(--sp-3);
+  overflow-y: auto;
+  background: var(--tile-bg);
+  border-radius: var(--r-tile);
+  box-shadow: var(--shadow-tile);
+}
+
+.inner {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: var(--sp-12) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.title {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.025em;
+  max-width: 20ch;
+}
+
+.lede {
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+  line-height: var(--lh-normal);
+  max-width: 62ch;
+}
+
+.meta {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+
+.sectionLede {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sp-5);
+  width: 100%;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--border);
+}
+
+.cardTitle {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+}
+
+.cardBody {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-normal);
+}
+
+.bands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  width: 100%;
+  max-width: 420px;
+}
+
+.bandRow {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bandSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--risk-solid);
+}
+
+.bandName {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-label);
+  color: var(--risk-color);
+}
+
+.bandRange {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.statusRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.statusText {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-normal);
+  max-width: 62ch;
+}
+
+@media (max-width: 767px) {
+  .inner {
+    padding: var(--sp-8) var(--sp-4);
+    gap: var(--sp-6);
+  }
+
+  .title {
+    font-size: var(--fs-lg);
+  }
+}
