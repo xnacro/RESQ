@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
+  "description": "RESQ Backend Service",
   "homepage": "https://github.com/xnacro/RESQ#readme",
   "bugs": {
     "url": "https://github.com/xnacro/RESQ/issues"
@@ -16,7 +16,8 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "generate:grid": "node scripts/generateGrid.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
