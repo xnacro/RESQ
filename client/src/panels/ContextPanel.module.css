@@ -1,0 +1,108 @@
+.dock {
+  flex: none;
+  width: var(--panel-w);
+  min-height: 0;
+  display: flex;
+  animation: slideIn var(--dur-slow) var(--ease-out);
+}
+
+/* Second raised tile, sibling to the map */
+.panel {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  border-radius: var(--r-tile);
+  background: var(--tile-bg);
+  box-shadow: var(--shadow-tile);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.collapse:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+/* Sits at the top right so it never collides with the map zoom rail */
+.reopen {
+  position: absolute;
+  right: var(--sp-3);
+  top: var(--sp-4);
+  z-index: var(--z-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 64px;
+  background: var(--tile-bg);
+  border: none;
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-muted);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.reopen:hover {
+  color: var(--accent);
+}
+
+.tabsRow {
+  padding: var(--sp-3) var(--sp-4) 0;
+}
+
+.routeForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.routeHint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  line-height: var(--lh-snug);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+@media (max-width: 767px) {
+  .dock {
+    width: auto;
+    height: 52%;
+    max-height: 52%;
+    animation: sheetIn var(--dur-slow) var(--ease-out);
+  }
+
+  .reopen {
+    top: auto;
+    bottom: var(--sp-3);
+    right: var(--sp-3);
+    width: 44px;
+    height: 34px;
+    border-radius: var(--r-md);
+  }
+
+  @keyframes sheetIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+}
