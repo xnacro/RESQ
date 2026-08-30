@@ -423,6 +423,31 @@ export const getGridsByGeometry = async (geoJsonGeometry, stateKey = "Assam", li
   return res.rows;
 };
 
+// Spatial query helper: Viewport BBox query returning lightweight GeoJSON feature collection
+export const getGridsByViewport = async (minLon, minLat, maxLon, maxLat, limit = 500) => {
+  const query = `
+    WITH bbox_cells AS (
+      SELECT grid_id, state, district, center_lat, center_lon,
+             static_risk, dynamic_risk, risk_score, risk_confidence, risk_status,
+             road_closure_risk, news_risk,
+             ST_AsGeoJSON(geom)::json AS geometry
+      FROM grid_500m.assam
+      WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
+      UNION ALL
+      SELECT grid_id, state, district, center_lat, center_lon,
+             static_risk, dynamic_risk, risk_score, risk_confidence, risk_status,
+             road_closure_risk, news_risk,
+             ST_AsGeoJSON(geom)::json AS geometry
+      FROM grid_500m.meghalaya
+      WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
+      LIMIT $5
+    )
+    SELECT * FROM bbox_cells;
+  `;
+  const res = await pool.query(query, [minLon, minLat, maxLon, maxLat, limit]);
+  return res.rows;
+};
+
 export default {
   STATE_CONFIG,
   initGridSchema,
@@ -432,4 +457,5 @@ export default {
   generateAllStateGrids,
   getGridByPoint,
   getGridsByGeometry,
+  getGridsByViewport,
 };

@@ -120,9 +120,71 @@ export const getIntersectingGrids = async (req, res) => {
   }
 };
 
+// Viewport BBox spatial query returning GeoJSON feature collection
+// GET /api/grid/viewport?bbox=91.6,26.0,91.8,26.2&limit=500
+export const getGridsByViewport = async (req, res) => {
+  try {
+    const { bbox, limit = 500 } = req.query;
+    if (!bbox) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required query parameter: 'bbox' (format: minLon,minLat,maxLon,maxLat).",
+      });
+    }
+
+    const parts = bbox.split(",").map((p) => parseFloat(p.trim()));
+    if (parts.length !== 4 || parts.some((p) => isNaN(p))) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid 'bbox' parameter. Must be 4 comma-separated floats: minLon,minLat,maxLon,maxLat.",
+      });
+    }
+
+    const [minLon, minLat, maxLon, maxLat] = parts;
+    const maxLimit = Math.min(1000, Math.max(1, parseInt(limit, 10) || 500));
+    const cells = await gridService.getGridsByViewport(minLon, minLat, maxLon, maxLat, maxLimit);
+
+    // Format as GeoJSON FeatureCollection
+    const geoJson = {
+      type: "FeatureCollection",
+      features: cells.map((c) => ({
+        type: "Feature",
+        id: c.grid_id,
+        geometry: c.geometry,
+        properties: {
+          grid_id: c.grid_id,
+          state: c.state,
+          district: c.district,
+          center_lat: c.center_lat,
+          center_lon: c.center_lon,
+          static_risk: parseFloat(c.static_risk),
+          dynamic_risk: parseFloat(c.dynamic_risk),
+          risk_score: parseFloat(c.risk_score),
+          risk_status: c.risk_status,
+          risk_confidence: parseFloat(c.risk_confidence),
+          road_closure_risk: parseFloat(c.road_closure_risk || 0),
+          news_risk: parseFloat(c.news_risk || 0),
+        },
+      })),
+    };
+
+    return res.status(200).json({
+      success: true,
+      count: cells.length,
+      data: geoJson,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 export default {
   generateGrids,
   getProcessingStatus,
   getGridByPoint,
   getIntersectingGrids,
+  getGridsByViewport,
 };

@@ -4,6 +4,7 @@ import {
   getProcessingStatus,
   getGridByPoint,
   getIntersectingGrids,
+  getGridsByViewport,
 } from "../controllers/gridController.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get("/status", getProcessingStatus);
 
 // Spatial queries
 router.get("/point", getGridByPoint);
+router.get("/viewport", getGridsByViewport);
 router.post("/intersect", getIntersectingGrids);
 
 export default router;

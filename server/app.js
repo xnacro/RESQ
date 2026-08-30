@@ -5,6 +5,7 @@ import pool from "./config/db.js";
 import gridRoutes from "./routes/gridRoutes.js";
 import newsRoutes from "./routes/newsRoutes.js";
 import riskRoutes from "./routes/riskRoutes.js";
+import geocodeRoutes from "./routes/geocodeRoutes.js";
 import { startNewsScheduler } from "./services/news/newsSchedulerService.js";
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 app.use("/api/grid", gridRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/risk", riskRoutes);
+app.use("/api/geocode", geocodeRoutes);
 
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
