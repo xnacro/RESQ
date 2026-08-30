@@ -1,223 +1,300 @@
-# RESQ — Frontend Implementation Plan (Phase 0 Audit & Blueprint)
+# RESQ — Frontend Implementation Plan (Map-First Disaster Intelligence UI)
 
 **Project**: RESQ (Disaster-Aware Relief Routing System for Assam & Meghalaya)  
-**Document**: Frontend Architecture, Teammate Audit & Implementation Roadmap  
-**Version**: 1.0.0 (Phase 0 Complete)  
+**Document**: Frontend Architecture, Open Geospatial Engine & Implementation Roadmap  
+**Version**: 2.0.0 (Phase 0 Audit Complete)  
 **Date**: August 30, 2026  
 
 ---
 
-## 1. Existing Frontend Architecture & Teammate Work Audit
+## 1. Executive Summary & Core Principle
 
-An extensive inspection of `client/`, git history, and existing commits reveals a well-structured, modular React 19 + Vite 8 frontend foundation built by teammates:
+The RESQ frontend delivers a **map-first, high-performance operational disaster intelligence platform** tailored for emergency responders, district disaster management authorities (DDMA), and relief dispatchers across Assam and Meghalaya.
 
-### 1.1 Technology Stack
-- **Framework**: React 19.2 + Vite 8.2 + React Router 7.1.
-- **Typography**: `@fontsource-variable/inter` (UI & Body) and `@fontsource/jetbrains-mono` (Coordinates, Metrics, Grid IDs).
-- **Icons**: `lucide-react`.
-- **Styling Architecture**: Pure CSS Modules + Centralized Design Token System (`client/src/styles/tokens.css`, `base.css`, `fonts.css`). Zero Tailwind dependency.
-
-### 1.2 Existing Modules & Reusable Components
-
-| Category | Component / Module | Path | Status & Reusability |
-|---|---|---|---|
-| **UI Primitives** | `Badge` | `client/src/ui/Badge.jsx` | Fully reusable (tones: neutral, quiet, accent, risk bands) |
-| | `Button` | `client/src/ui/Button.jsx` | Fully reusable (variants: primary, secondary, quiet, emergency) |
-| | `Panel`, `PanelHeader`, `PanelBody` | `client/src/ui/Panel.jsx` | Fully reusable modular panel surface |
-| | `Tabs`, `TabPanel` | `client/src/ui/Tabs.jsx` | Fully reusable for panel navigation |
-| | `TextField` | `client/src/ui/TextField.jsx` | Fully reusable with leading/trailing icons |
-| | `MeterBar` | `client/src/ui/MeterBar.jsx` | Fully reusable for risk factor breakdown bars |
-| | `ScoreReadout` | `client/src/ui/ScoreReadout.jsx` | Fully reusable for large numerical risk display |
-| | `KeyValueRow` | `client/src/ui/KeyValueRow.jsx` | Fully reusable for metadata display |
-| | `Tooltip`, `Toggle`, `Spinner`, `Skeleton` | `client/src/ui/` | Complete utility set |
-| **App Shell** | `AppShell` | `client/src/app/AppShell.jsx` | TopBar wrapper and view container |
-| | `TopBar` | `client/src/app/TopBar.jsx` | Brand mark, search field, navigation, SOS button |
-| | `BrandMark` | `client/src/app/BrandMark.jsx` | Vector logo icon |
-| **Map Engine** | `MapSurface` | `client/src/map/MapSurface.jsx` | Viewport container, wheel zoom, drag/pan, pointer capture |
-| | `MapChrome` | `client/src/map/MapChrome.jsx` | Zoom controls, coordinate readout, dynamic scale bar |
-| | `viewportContext.js`, `viewport.jsx` | `client/src/map/` | React context for camera position `[lon, lat]`, zoom, bounds |
-| | `projection.js` | `client/src/map/projection.js` | Web Mercator projection and meter-per-pixel calculations |
-| | `constants.js` | `client/src/map/constants.js` | Guwahati center, bounds, zoom constraints |
-| **Panels** | `ContextPanel` | `client/src/panels/ContextPanel.jsx` | Right-side intelligence dock with analysis & route tabs |
-
-### 1.3 Teammate Work to Preserve
-- **Design Token Structure**: Maintain token nomenclature and CSS module encapsulation.
-- **Map Viewport Context**: Retain camera state management (`center`, `zoom`, `panBy`, `zoomBy`) and Web Mercator unprojection math.
-- **UI Primitives**: All components in `client/src/ui/` will be directly consumed without breaking changes.
+```
+       OPEN / FREE MAP RENDERING (MapLibre GL JS)
+                           +
+    INDIAN SOVEREIGN GEOSPATIAL LAYERS (ISRO / NRSC Bhuvan)
+                           +
+  RESQ 500M POSTGIS RISK GRID SSOT (408,986 Grid Single Source of Truth)
+                           +
+          REAL-TIME DEVICE GEOLOCATION (Browser GPS)
+                           +
+           SURAKSHA GEOCODER (Server-Side Proxy)
+                           =
+  RESQ SOVEREIGN-READY DISASTER INTELLIGENCE INTERFACE
+```
 
 ---
 
-## 2. Design Inspiration & Information Architecture (SurakshaAI Alignment)
+## 2. Existing Frontend Code & Teammate Audit
 
-Following the visual hierarchy of the reference interface with emergency disaster response branding:
+An inspection of `client/`, git history, and teammate commits shows an established React 19 + Vite 8 modular architecture that will be preserved and extended:
+
+### 2.1 Preserved Foundation
+- **Framework**: React 19.2 + Vite 8.2 + React Router 7.1.
+- **Typography**: `@fontsource-variable/inter` and `@fontsource/jetbrains-mono`.
+- **UI Primitives in `client/src/ui/`**: 14 modular components (`Badge`, `Button`, `Divider`, `KeyValueRow`, `MeterBar`, `Panel`, `ScoreReadout`, `Skeleton`, `Spinner`, `StateBlock`, `Tabs`, `TextField`, `Toggle`, `Tooltip`).
+- **Map Substrate & Math**: `projection.js` (Web Mercator projection and meter-per-pixel calculations), `viewport.jsx` (camera state context), `constants.js` (Guwahati framing and bounds).
+- **Design Tokens**: `client/src/styles/tokens.css` with CSS custom properties.
+
+---
+
+## 3. Map Technology & Sovereign Geospatial Architecture
+
+### 3.1 Primary Map Engine: MapLibre GL JS
+- **Technology**: `maplibre-gl` (Open-source, WebGL/WebGL2-based vector and raster rendering).
+- **Rationale**:
+  - Zero proprietary vendor lock-in or recurring commercial tile tokens.
+  - Native hardware-accelerated 3D terrain and pitch/bearing camera controls.
+  - Dynamic GeoJSON/Vector tile rendering for 500m risk polygons and incident markers.
+  - High performance on both desktop workstations and mobile touch devices.
+
+### 3.2 Abstract Map Provider Pattern
+The map substrate abstracts basemap and layer sources to guarantee uninterrupted operation:
+
+```
+MapProvider (Abstraction)
+  ├── OpenMapProvider       ──► OpenStreetMap / Carto Light / OpenTopoMap
+  ├── BhuvanProvider        ──► ISRO / NRSC Bhuvan WMS & Thematic Hazard Layers
+  ├── SovereignTerrainDEM   ──► Bhuvan Terrain / MapLibre Raster-DEM Elevation
+  └── SatelliteProvider     ──► Bhuvan Satellite / Open Satellite Imagery
+```
+
+### 3.3 Map Modes & Capabilities
+
+| Map Mode | Visual Layer Stack | Disaster Operational Purpose |
+|---|---|---|
+| **Normal** (Default) | Light vector/raster basemap + 500m risk grid + active incidents + road/bridge status | High-contrast operational clarity without visual clutter |
+| **3D** | WebGL 3D terrain elevation (pitch $45^\circ-60^\circ$) + risk overlay + incidents | Visualizing escarpments, valleys, and slope-triggered hazards (e.g. landslides) |
+| **Terrain** | DEM-derived hillshade + contour relief + river floodplains | Analyzing elevation-driven flood inundation and valley accessibility |
+| **Satellite** | Official ISRO/Bhuvan high-res imagery (or graceful fallback) | Ground-truth visual context of land cover, river courses, and terrain |
+| **Hybrid** | Satellite imagery + road transport network + risk grid + bridge status | Comprehensive operational situational awareness |
+
+---
+
+## 4. 500m Risk Grid Viewport Query & Rendering Architecture
+
+The database contains **408,986 grid cells** (Assam: 317,842, Meghalaya: 91,144). To guarantee 60 FPS performance without browser DOM bottlenecks:
+
+```
+Map Camera Viewport Moves / Zooms
+               │
+               ▼
+Extract Viewport Bounding Box [minLon, minLat, maxLon, maxLat]
+               │
+               ▼ (Only if Zoom >= 11.0)
+GET /api/grid/viewport?bbox=minLon,minLat,maxLon,maxLat
+               │
+               ▼
+PostGIS: ST_Intersects(geom, ST_MakeEnvelope(minLon, minLat, maxLon, maxLat, 4326))
+               │
+               ▼
+Lightweight GeoJSON Response (grid_id, risk_score, dynamic_risk, risk_status, geom)
+               │
+               ▼
+MapLibre Vector Source Update (Fill Layer with Dynamic Expression Styling)
+```
+
+### 4.1 Harmonized Risk Colors & Semantic Statuses
+
+| Risk Status | Score Threshold | Road Closure Safety Floor | Map Fill Hex | Operational Meaning |
+|---|---|---|---|---|
+| 🟢 **LOW** | $0.0 - 24.9$ | None | `#16a34a` (Alpha 0.35) | Safe transit corridor |
+| 🟡 **MODERATE** | $25.0 - 44.9$ | None | `#d97706` (Alpha 0.45) | Heightened caution required |
+| 🟠 **HIGH** | $45.0 - 69.9$ | None | `#ea580c` (Alpha 0.55) | Impending hazard / heavy flood |
+| 🔴 **CRITICAL** | $70.0 - 100.0$ | $\ge 80.0$ | `#dc2626` (Alpha 0.70) | Severe disruption / road/bridge closed |
+
+---
+
+## 5. Real-Time Geolocation & Geocoding Pipeline
+
+### 5.1 Device Geolocation Flow
+```
+User clicks [📍 Locate Me] / Allows Browser Permission
+               │
+               ▼
+navigator.geolocation.getCurrentPosition({ enableHighAccuracy: true })
+               │
+               ▼
+Display Pulsing "You Are Here" Radar Pin on Map
+               │
+               ▼
+GET /api/grid/point?lat={lat}&lon={lon}
+               │
+               ▼
+PostGIS ST_Contains(geom, ST_Point(lon, lat)) ──► Returns Current Cell (e.g. AS_00210744)
+               │
+               ▼
+GET /api/risk/grid/AS_00210744 ──► Populate Right Intelligence Panel with Live Risk
+```
+
+### 5.2 Location Search & Suraksha Geocoder Proxy
+```
+User Types "Guwahati" / "Boko Bridge" / "Nongpoh" in TopBar Search
+               │
+               ▼
+Debounced Query (300ms) ──► GET /api/geocode?q={query}
+               │
+               ▼
+RESQ Backend Geocoder Service
+  ├── 1. Query Suraksha / Regional Gazetteer
+  └── 2. Fallback to Local Assam & Meghalaya District & Landmark Gazetteers
+               │
+               ▼
+Normalized Place Candidates (Name, District, State, Lat, Lon, Category)
+               │
+               ▼
+User Selects Candidate ──► Fly camera to coordinates + Resolve 500m Grid + Open Intelligence
+```
+
+---
+
+## 6. Screen Architecture: Desktop vs. Mobile (SurakshaAI Alignment)
+
+### 6.1 Desktop Layout (~72% Map / ~28% Right Intelligence Panel)
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  RESQ ● LIVE      [  🔍 Search any place, district, bridge, or grid ID in Assam & Meghalaya  ]  [🔔]  │  [🗺️ Map] [🚨 RESQ Mode] [📡 Feeds] [👤 Officer]
 ├──────────────────────────────────────────────────────────────────────────┬─────────────────────────────┤
 │                                                                          │  📍 DISASTER INTELLIGENCE   │
-│  [ℹ️ RESQ Map - Assam & Meghalaya]                                       │  Search a place or click map│
+│  [ℹ️ RESQ Map - Assam & Meghalaya]                                       │  Guwahati, Kamrup Metro     │
 │                                                                          │  ─────────────────────────  │
 │                                                                          │  [ 🚨 GET RELIEF DIRECTIONS]│
 │                                                      [ ⌖ Recenter ]      │  ─────────────────────────  │
 │                                                      [ 🧭 North   ]      │  [ Overview | Hazards | Ev ]│
 │                                                      [ ＋ Zoom In ]      │                             │
 │                  📍 Active Landslide Marker          [ － Zoom Out]      │  CURRENT RISK               │
-│                     (NH-6 Blockage)                  [ ⛶ Fullscr  ]      │     64 / 100    HIGH        │
-│                                                                          │  Static: 22   Dynamic: 78   │
+│                     (NH-6 Blockage)                  [ ⛶ Fullscr  ]      │     64.5 / 100   CRITICAL   │
+│                                                                          │  Static: 26.2  Dynamic: 90  │
 │                                                                          │  ─────────────────────────  │
-│                                                                          │  ACTIVE HAZARDS             │
-│                                                                          │  • Road Flooding       +32  │
-│                                                                          │  • Bridge Closure      +30  │
-│                                                                          │  • Heavy Rainfall      +14  │
+│                                                                          │  WHY THIS RISK?             │
+│                                                                          │  • Bridge Closure      +80.8│
+│                                                                          │  • Flash Flood Alert   +56.0│
+│                                                                          │  • Historical Sero     +0.0 │
 │                                                                          │  ─────────────────────────  │
-│                                                                          │  Confidence: 94% (Verified) │
+│                                                                          │  Confidence: 97% (Verified) │
 │  ┌───────────────────────────────────────────────────────────────┐       │  Source: Shillong Times     │
 │  │ [Normal]  [3D Terrain]  [Satellite]  [Hybrid]  [Risk Grid]    │       │  Updated: 2 mins ago        │
 │  └───────────────────────────────────────────────────────────────┘       │                             │
 ├──────────────────────────────────────────────────────────────────────────┴─────────────────────────────┤
-│  Scale: 5 km ─── | Coordinates: 26.1445°N, 91.7362°E | Zoom: z12.4 | Active Hazards: 15 | Grids: 408k │
+│  Scale: 5 km ─── | Coordinates: 26.1440°N, 91.7369°E | Zoom: z12.4 | Active Hazards: 15 | Grids: 408k │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.1 Visual Palette & Styling Direction
-- **Background & Card Surfaces**: Clean white (`#ffffff`), slate tinted borders (`#e2e8f0`), soft elevated card shadows (`0 4px 20px rgba(0,0,0,0.06)`).
-- **Primary Accent**: Operational Cobalt Blue (`#2563eb` / `#1d4ed8`).
-- **Emergency Accent**: Crimson Red (`#dc2626` / `#ef4444`).
-- **Risk Colors (Harmonized Semantics)**:
-  - 🟢 **LOW**: `#16a34a` (Green)
-  - 🟡 **MODERATE**: `#d97706` (Amber)
-  - 🟠 **HIGH**: `#ea580c` (Orange)
-  - 🔴 **CRITICAL**: `#dc2626` (Red)
-
----
-
-## 3. Screen Architecture: Desktop vs. Mobile
-
-### 3.1 Desktop Layout (~72% Map / ~28% Intelligence Panel)
-- **Top Navigation**: Fixed 64px header with brand mark, search pill, live indicator, and navigation items.
-- **Main Map Workspace**: Full viewport height minus header, rendering base tile maps, 500m risk grid overlay, active hazard pins, and floating layer switcher.
-- **Right Intelligence Panel**: 380px–420px floating/docked card with smooth collapse/expand, live gauge, multi-tab breakdown, and relief routing trigger.
-
-### 3.2 Mobile Layout (Map-First + Bottom Sheet UX)
-- **Header**: Compact 52px top bar with search trigger and quick status.
-- **Map**: Occupies 100% of mobile screen.
+### 6.2 Mobile Layout (Map-First + Bottom Sheet UX)
+- **Top Header**: Compact 54px header with brand mark, search pill, and location trigger.
+- **Center Canvas**: 100% full-viewport interactive map.
 - **Bottom Intelligence Sheet**:
-  - **Collapsed (Peek State - 80px)**: Displays Current Risk Score, Status Badge, and Primary Hazard snippet.
-  - **Expanded State (Swipe up / Tap)**: Opens complete explainability panel, static/dynamic breakdown, active news links, and RESQ Mode action button.
+  - **Peek State (80px)**: Large risk score badge (`64.5 CRITICAL`), primary hazard summary (`Bridge closure detected`), and swipe handle.
+  - **Expanded State (Swipe Up / Tap)**: Complete explainability breakdown, active hazard list, verified source citations, and RESQ Mode emergency routing button.
 
 ---
 
-## 4. API Integration Plan
+## 7. RESQ Mode: Emergency Relief Routing UX Contract
 
-A centralized client API module `client/src/services/api.js` will encapsulate all server communications:
-
-```
-CLIENT (React 19)
-    │
-    ├── 1. Geocoding & Place Search ────────► GET /api/geocode?q={query}
-    │
-    ├── 2. Point-to-Grid Lookup     ────────► GET /api/grid/point?lat={lat}&lon={lon}
-    │
-    ├── 3. Grid Risk Explainability ────────► GET /api/risk/grid/{gridId}
-    │
-    ├── 4. Bounded Grid Query       ────────► POST /api/grid/intersect (bbox)
-    │
-    └── 5. Live Disaster Events     ────────► GET /api/news/events/active
-```
+A dedicated relief routing panel allows operators to select logistics parameters:
+- **Relief Vehicles**:
+  - 🚑 **Ambulance**: High speed, sensitive to flood depth ($> 15\text{cm}$).
+  - 🚛 **Relief Truck**: Heavy payload, requires bridge clearance and stability.
+  - 🚰 **Water Tanker**: Heavy liquid axle load, avoids steep terrain ($> 15\%$).
+  - 🚙 **4x4 Off-Road**: Specialized high-clearance rough terrain vehicle.
+- **Relief Cargo**:
+  - 💊 **Critical Medical / Oxygen** (Priority: Critical)
+  - 🍞 **Emergency Rations & Food** (Priority: High)
+  - 💧 **Drinking Water** (Priority: High)
+  - ⛺ **Shelter Kits & Blankets** (Priority: Standard)
+- **Route Safety Status Preview**:
+  - 🟢 `SAFE`: Risk score $< 25$, all bridges open.
+  - 🟡 `CAUTION`: Minor waterlogging reported, passable with care.
+  - 🟠 `AVOID`: Active high dynamic risk ($> 45$), alternate route advised.
+  - 🔴 `BLOCKED`: Physical bridge washout or road collapse ahead.
 
 ---
 
-## 5. Phase-by-Phase Implementation Roadmap
+## 8. Real-Time Risk Updates via Socket.IO
+
+When backend event processing or cron recalculation modifies dynamic grid risks:
+- Server emits `risk:grid-updated` to connected clients.
+- Frontend receives payload:
+  ```json
+  {
+    "gridId": "AS_00210744",
+    "riskScore": 64.5,
+    "dynamicRisk": 90.0,
+    "riskStatus": "CRITICAL",
+    "riskConfidence": 0.97,
+    "timestamp": "2026-08-30T01:33:54.270Z"
+  }
+  ```
+- MapLibre instantly re-colors the targeted polygon without a full map reload.
+- Intelligence panel updates reactively if the cell is currently selected.
+
+---
+
+## 9. Phase-by-Phase Implementation Roadmap (Phases 0 to 13)
 
 ```
-Phase 0: Audit & Architecture Blueprint (COMPLETE)
+Phase 0: Architecture & Teammate Audit (COMPLETE)
    │
    ▼
 Phase 1: RESQ Dashboard Shell & Theme Refinement
-   │ ↳ Refine TopBar with search pill, live status badge, and navigation tabs
-   │ ↳ Update tokens.css with clean white & slate surfaces and risk colors
+   │ ↳ Clean white surfaces, emergency accents, TopBar search pill, live status badge
    │
    ▼
-Phase 2: Base Map Tile Integration & Layer Switcher
-   │ ↳ Integrate high-performance OpenStreetMap / Carto raster tile substrate
-   │ ↳ Floating bottom layer switcher (Normal, 3D Terrain, Satellite, Hybrid, Risk Grid)
+Phase 2: MapLibre Map Engine Integration
+   │ ↳ Install maplibre-gl, mount WebGL canvas, coordinate controls, scale bar
    │
    ▼
-Phase 3: Location Search & Server Geocoder Integration
-   │ ↳ Server-side gazetteer route `/api/geocode` (Districts, towns, highways, bridges)
-   │ ↳ Frontend auto-complete search dropdown with instant fly-to animation
+Phase 3: Real-Time Browser Geolocation
+   │ ↳ Geolocation API, pulsing radar marker, permission states, reverse grid lookup
    │
    ▼
-Phase 4: Grid Risk API Client & State Store
-   │ ↳ `client/src/services/api.js` client layer
-   │ ↳ Reactive selection state store for active grid cell / coordinates
+Phase 4: Suraksha Geocoder & Server Gazetteers
+   │ ↳ Backend `/api/geocode` proxy, auto-complete search dropdown, camera fly-to
    │
    ▼
-Phase 5: 500m Risk Grid Bounded Rendering
-   │ ↳ BBox-driven grid cell loading for visible viewport (preventing heavy DOM)
-   │ ↳ Risk-band colorized polygon fills (LOW, MODERATE, HIGH, CRITICAL)
+Phase 5: 500m Risk Grid Viewport Rendering
+   │ ↳ Backend `/api/grid/viewport` BBox query, MapLibre vector polygon fill styling
    │
    ▼
-Phase 6: Active Disaster Event Overlays & Markers
-   │ ↳ Fetch live events from `/api/news/events/active`
-   │ ↳ Render distinct pins for Floods, Landslides, Bridge Closures, Road Blockages
-   │ ↳ Interactive event popup card on marker click
+Phase 6: Explainable Risk Intelligence Panel
+   │ ↳ Connect `/api/risk/grid/:gridId`, Circular Risk Meter, Static/Dynamic split
    │
    ▼
-Phase 7: Explainable Right Intelligence Panel
-   │ ↳ Live Risk Circular Gauge / Meter Bar
-   │ ↳ Static vs. Dynamic Risk Breakdown
-   │ ↳ Active Hazards list with additive risk weights (+32, +30, etc.)
-   │ ↳ Confidence & Media Evidence links
+Phase 7: Active Disaster Event Overlays & Marker Cards
+   │ ↳ Fetch `/api/news/events/active`, render distinct hazard pins with popup cards
    │
    ▼
-Phase 8: Responsive Mobile Bottom-Sheet UX
-   │ ↳ Touch-friendly expandable bottom sheet
-   │ ↳ Responsive layouts across 375px (mobile) to 1920px (ultrawide)
+Phase 8: 3D WebGL Terrain Mode
+   │ ↳ MapLibre 3D terrain elevation, pitch/bearing controls, escarpment visualization
    │
    ▼
-Phase 9: RESQ Mode Relief Routing UX Shell
-   │ ↳ Vehicle selector (Ambulance, Relief Truck, 4x4, Water Tanker)
-   │ ↳ Cargo type selector (Medical, Food, Water, Relief Goods)
+Phase 9: Terrain Hillshade Mode
+   │ ↳ DEM-derived slope/relief and river floodplain visualization
    │
    ▼
-Phase 10: Route Safety Preview & Future Valhalla Contract
-   │ ↳ Route intelligence placeholder & safety status contract (SAFE, CAUTION, AVOID, BLOCKED)
+Phase 10: Bhuvan / Indian Sovereign Geospatial Layers
+   │ ↳ ISRO/NRSC Bhuvan WMS thematic hazard layers with abstract provider fallback
+   │
+   ▼
+Phase 11: RESQ Mode Emergency Relief Routing Shell
+   │ ↳ Vehicle, cargo, and priority selection modal and state store
+   │
+   ▼
+Phase 12: Real-Time Live Risk Updates (Socket.IO)
+   │ ↳ Backend socket broadcast and client polygon live re-coloring
+   │
+   ▼
+Phase 13: Valhalla Routing Contract Preparation
+   │ ↳ Route intelligence UI shell and safety state badges (SAFE, CAUTION, AVOID, BLOCKED)
 ```
 
 ---
 
-## 6. Files to be Created / Modified
+## 10. Verification & Quality Assurance Strategy
 
-### Files to be Modified
-- `client/src/styles/tokens.css` (Update surfaces to clean white/slate theme + brand accents)
-- `client/src/app/TopBar.jsx` (Search input, suggestions, live status, RESQ branding)
-- `client/src/app/AppShell.jsx` (Responsive mobile & desktop shell)
-- `client/src/panels/ContextPanel.jsx` (Connect real `/api/risk/grid/:gridId` data & explainability breakdown)
-- `client/src/map/MapSurface.jsx` (Mount raster base tiles & vector risk grid canvas)
-- `client/src/map/MapChrome.jsx` (Layer switcher, vertical map controls)
-- `client/src/lib/riskBands.js` (Harmonize thresholds with backend `DYNAMIC_RISK_CONFIG`)
-- `server/app.js` & `server/routes/` (Add `/api/geocode` gazetteer search endpoint)
-
-### Files to be Created
-- `client/src/services/api.js` (Centralized API client for geocoding, risk, grid, and events)
-- `client/src/map/BaseTiles.jsx` (Raster tile layer renderer for OSM/Carto/Satellite)
-- `client/src/map/RiskGridLayer.jsx` (Efficient viewport grid renderer)
-- `client/src/map/EventMarkersLayer.jsx` (Disaster event pins and popup tooltips)
-- `client/src/map/LayerSwitcher.jsx` (Bottom floating layer control pill)
-- `client/src/panels/RiskOverviewTab.jsx` (Live risk score, status, static/dynamic split)
-- `client/src/panels/HazardBreakdownTab.jsx` (Explainability list, active evidence, confidence)
-- `client/src/panels/ResqModeTab.jsx` (Emergency relief routing UX structure)
-- `server/routes/geocodeRoutes.js` (Gazetteer and district geocoding server route)
-
----
-
-## 7. Risks & Mitigation Strategies
-
-1. **DOM Overload from 408,986 Grid Cells**:
-   - *Mitigation*: Never render full-state polygon sets at once. Render grid cells only when zoom level is $\ge 12.0$ and restrict spatial queries strictly to the active viewport BBox.
-2. **Offline / Network Latency for Geocoding**:
-   - *Mitigation*: Built-in local fallback gazetteer for all 47 districts and 150+ regional towns in Assam & Meghalaya.
-3. **Preserving Teammate Contributions**:
-   - *Mitigation*: Zero deletions of existing UI components; reuse and extend `client/src/ui/` primitives and map viewport context.
+- **Build Validation**: Every phase verified with `npm run build` and `oxlint`.
+- **Performance Budget**: Initial map load $< 1.5\text{s}$, 60 FPS viewport panning, $< 500$ DOM elements total.
+- **Strict Git Rule**: Small, focused commits pushed incrementally after automated testing; zero temporary test artifacts committed.
