@@ -1,8 +1,10 @@
 /* Admin Command & Intelligence Center Layout and Glassmorphic Styles */
 
 .adminLayout {
+  position: absolute;
+  inset: 0;
   display: flex;
-  min-height: calc(100vh - 62px);
+  min-height: 0;
   background: radial-gradient(circle at 50% 0%, #f0f9ff 0%, #f8fafc 100%);
   font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #0f172a;
@@ -20,6 +22,7 @@
   flex-direction: column;
   gap: 24px;
   flex-shrink: 0;
+  overflow-y: auto;
   box-shadow: 2px 0 16px rgba(15, 23, 42, 0.03);
 }
 
@@ -71,12 +74,19 @@
 /* Main Content Workspace */
 .mainWorkspace {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   padding: 32px 36px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
   max-width: 1380px;
+}
+
+/* Cards keep their content height instead of being squeezed by the scroll container */
+.mainWorkspace > * {
+  flex-shrink: 0;
 }
 
 .topHeader {
