@@ -1,4 +1,4 @@
-// RESQ Mode Main Operational View for Live Disaster Safety, GPS Tracking, Grid, and Risk Monitoring
+// RESQ Mode Main Operational View for Live Disaster Safety, GPS Tracking, Risk, and Safety Timer
 import { useState } from 'react'
 import {
   Shield,
@@ -12,6 +12,8 @@ import {
   AlertTriangle,
   Flame,
   X,
+  CheckCircle2,
+  Hourglass,
 } from 'lucide-react'
 import { MapSurface } from '../map/MapSurface.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
@@ -32,6 +34,12 @@ export function ResqView() {
     activeEvents,
     riskAlert,
     setRiskAlert,
+    formattedTimeRemaining,
+    isTimerWarning,
+    isTimerExpired,
+    isCheckInPending,
+    checkIn,
+    extendTimer,
     startSession,
     stopSession,
   } = useResqMode()
@@ -40,6 +48,7 @@ export function ResqView() {
   const [copied, setCopied] = useState(false)
   const [confirmEnd, setConfirmEnd] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [checkInSuccess, setCheckInSuccess] = useState(false)
 
   const handleStart = async () => {
     setActionError('')
@@ -59,6 +68,26 @@ export function ResqView() {
       setConfirmEnd(false)
     } catch (err) {
       setActionError(err.message || 'Failed to stop session')
+    }
+  }
+
+  const handleCheckIn = async () => {
+    setActionError('')
+    try {
+      await checkIn()
+      setCheckInSuccess(true)
+      setTimeout(() => setCheckInSuccess(false), 3000)
+    } catch (err) {
+      setActionError(err.message || 'Check-in failed')
+    }
+  }
+
+  const handleExtend = async (mins) => {
+    setActionError('')
+    try {
+      await extendTimer(mins)
+    } catch (err) {
+      setActionError(err.message || 'Failed to extend safety timer')
     }
   }
 
@@ -267,6 +296,14 @@ export function ResqView() {
 
           {/* Right Safety Intelligence Panel */}
           <div className={styles.activeSidePanel}>
+            {/* Action or General Error Alert */}
+            {actionError && (
+              <div style={{ padding: '10px 14px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '12px', color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>
+                <AlertTriangle size={14} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} />
+                {actionError}
+              </div>
+            )}
+
             {/* Risk Escalation Alert Banner */}
             {riskAlert && (
               <div className={styles.riskAlertBanner}>
@@ -285,6 +322,55 @@ export function ResqView() {
                 </button>
               </div>
             )}
+
+            {/* Safety Countdown Timer & Check-in Card */}
+            <div className={`${styles.timerCard} ${isTimerExpired ? styles.timerCardExpired : isTimerWarning ? styles.timerCardWarning : ''}`}>
+              <div className={styles.timerHeaderRow}>
+                <div className={styles.timerTitle}>
+                  <Hourglass size={14} />
+                  <span>SAFETY CHECK-IN TIMER</span>
+                </div>
+                <div className={`${styles.timerCountdownDisplay} ${isTimerExpired ? styles.timerCountdownExpired : isTimerWarning ? styles.timerCountdownWarning : ''}`}>
+                  {formattedTimeRemaining}
+                </div>
+              </div>
+
+              {/* Primary Check-in Button */}
+              <button
+                type="button"
+                className={styles.checkInBtn}
+                onClick={handleCheckIn}
+                disabled={isCheckInPending}
+              >
+                {checkInSuccess ? <CheckCircle2 size={18} /> : <Shield size={18} />}
+                <span>{checkInSuccess ? "CHECKED IN • YOU'RE SAFE" : isCheckInPending ? "Checking in..." : "I'M SAFE • CHECK IN"}</span>
+              </button>
+
+              {/* Extend Timer Group */}
+              <div className={styles.extendBtnGroup}>
+                <button
+                  type="button"
+                  className={styles.extendBtn}
+                  onClick={() => handleExtend(15)}
+                >
+                  +15 min
+                </button>
+                <button
+                  type="button"
+                  className={styles.extendBtn}
+                  onClick={() => handleExtend(30)}
+                >
+                  +30 min
+                </button>
+                <button
+                  type="button"
+                  className={styles.extendBtn}
+                  onClick={() => handleExtend(60)}
+                >
+                  +1 hr
+                </button>
+              </div>
+            </div>
 
             {/* Primary Live Dynamic Risk Gauge */}
             <div className={styles.riskGaugeCard}>

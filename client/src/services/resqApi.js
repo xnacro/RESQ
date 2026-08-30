@@ -128,10 +128,52 @@ export async function updateResqSessionLocation({
   }
 }
 
+// 6. User Safety Check-in (Resets safety countdown)
+export async function checkInResqSession(sessionId) {
+  try {
+    const res = await fetch(`${API_BASE}/checkin`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ sessionId }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to check in')
+    }
+    return data
+  } catch (err) {
+    console.error('checkInResqSession error:', err.message)
+    throw err
+  }
+}
+
+// 7. Modify Safety Timer Countdown Interval
+export async function updateResqSessionTimer({ sessionId, safetyTimerMinutes }) {
+  try {
+    const res = await fetch(`${API_BASE}/timer/update`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ sessionId, safetyTimerMinutes }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update timer')
+    }
+    return data
+  } catch (err) {
+    console.error('updateResqSessionTimer error:', err.message)
+    throw err
+  }
+}
+
 export default {
   startResqSession,
   stopResqSession,
   getActiveResqSession,
   getResqSessionById,
   updateResqSessionLocation,
+  checkInResqSession,
+  updateResqSessionTimer,
 }

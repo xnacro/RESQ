@@ -1,4 +1,4 @@
-// Hook for RESQ Mode Session Lifecycle, Live GPS Tracking, 500m Grid, and Dynamic Risk Monitoring
+// Hook for RESQ Mode Session Lifecycle, Live GPS Tracking, 500m Grid, Risk, and Safety Timer
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   startResqSession,
@@ -6,6 +6,8 @@ import {
   getActiveResqSession,
   getResqSessionById,
   updateResqSessionLocation,
+  checkInResqSession,
+  updateResqSessionTimer,
 } from '../services/resqApi.js'
 import { useAuth } from '../app/authContext.jsx'
 
@@ -42,6 +44,10 @@ export function useResqMode() {
   const [activeEvents, setActiveEvents] = useState([])
   const [riskTransition, setRiskTransition] = useState(null)
   const [riskAlert, setRiskAlert] = useState(null)
+
+  // Safety Timer States
+  const [timeRemainingMs, setTimeRemainingMs] = useState(0)
+  const [isCheckInPending, setIsCheckInPending] = useState(false)
 
   const watchIdRef = useRef(null)
   const lastServerUpdateRef = useRef(0)
@@ -102,7 +108,26 @@ export function useResqMode() {
     }
   }, [isAuthenticated])
 
-  // 2. Throttled Server Location Sync Function
+  // 2. Continuous 1-Second Timer Countdown Loop
+  useEffect(() => {
+    if (!isActive || !session || !session.timer_expires_at) {
+      setTimeRemainingMs(0)
+      return
+    }
+
+    const updateTimer = () => {
+      const expiresAt = new Date(session.timer_expires_at).getTime()
+      const remaining = Math.max(0, expiresAt - Date.now())
+      setTimeRemainingMs(remaining)
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+
+    return () => clearInterval(interval)
+  }, [isActive, session?.timer_expires_at])
+
+  // 3. Throttled Server Location Sync Function
   const syncLocationWithServer = useCallback(
     async (coords, sessionId) => {
       if (!sessionId || !coords) return
@@ -116,7 +141,6 @@ export function useResqMode() {
         movedDistance = computeDistanceM(lastLoc.lat, lastLoc.lon, coords.latitude, coords.longitude)
       }
 
-      // Check throttle threshold
       const isFirst = lastServerUpdateRef.current === 0
       const isTimeDue = timeSinceLast >= LOCATION_THROTTLE_MS
       const isDistanceDue = movedDistance >= DISTANCE_DELTA_METERS
@@ -164,7 +188,7 @@ export function useResqMode() {
 
   const sessionId = session?.session_id
 
-  // 3. Start Browser GPS watchPosition when Session is Active
+  // 4. Start Browser GPS watchPosition when Session is Active
   useEffect(() => {
     if (!isActive || !sessionId) {
       if (watchIdRef.current !== null) {
@@ -190,16 +214,12 @@ export function useResqMode() {
         timestamp: pos.timestamp || Date.now(),
       }
 
-      // 1. Instant local UI coordinate update
       setLiveLocation(currentGps)
-
-      // 2. Throttled server session & risk synchronization
       syncLocationWithServer(pos.coords, sessionId)
     }
 
     const onPositionError = (err) => {
       console.warn('Geolocation watch error, using demo fallback:', err.message)
-      // Fallback demo coordinates in Guwahati center
       const fallbackCoords = {
         latitude: 26.1445,
         longitude: 91.7362,
@@ -224,10 +244,7 @@ export function useResqMode() {
       timeout: 10000,
     }
 
-    // Trigger immediate single position lookup
     navigator.geolocation.getCurrentPosition(onPositionSuccess, onPositionError, watchOptions)
-
-    // Start continuous watch
     const id = navigator.geolocation.watchPosition(onPositionSuccess, onPositionError, watchOptions)
     watchIdRef.current = id
 
@@ -239,7 +256,53 @@ export function useResqMode() {
     }
   }, [isActive, sessionId, syncLocationWithServer])
 
-  // 4. Start a new RESQ Safety Session
+  // 5. User Safety Check-in Action
+  const checkIn = useCallback(async () => {
+    if (!sessionId) return
+
+    setIsCheckInPending(true)
+    setError(null)
+
+    try {
+      const res = await checkInResqSession(sessionId)
+      if (res && res.session) {
+        setSession(res.session)
+      }
+      return res
+    } catch (err) {
+      setError(err.message || 'Check-in failed')
+      throw err
+    } finally {
+      setIsCheckInPending(false)
+    }
+  }, [sessionId])
+
+  // 6. Extend Safety Timer Action
+  const extendTimer = useCallback(
+    async (additionalMinutes) => {
+      if (!sessionId || !session) return
+
+      const currentMins = session.safety_timer_minutes || 30
+      const newMins = currentMins + additionalMinutes
+
+      try {
+        const res = await updateResqSessionTimer({
+          sessionId,
+          safetyTimerMinutes: newMins,
+        })
+        if (res && res.session) {
+          setSession(res.session)
+        }
+        return res
+      } catch (err) {
+        setError(err.message || 'Failed to extend safety timer')
+        throw err
+      }
+    },
+    [sessionId, session]
+  )
+
+  // 7. Start a new RESQ Safety Session
   const startSession = useCallback(
     async ({ safetyTimerMinutes = 30, trustedContacts = [] } = {}) => {
       setIsLoading(true)
@@ -277,15 +340,15 @@ export function useResqMode() {
     []
   )
 
-  // 5. Stop active RESQ Safety Session
+  // 8. Stop active RESQ Safety Session
   const stopSession = useCallback(async () => {
-    if (!session || !session.session_id) return
+    if (!sessionId) return
 
     setIsLoading(true)
     setError(null)
 
     try {
-      await stopResqSession(session.session_id)
+      await stopResqSession(sessionId)
       if (watchIdRef.current !== null) {
         navigator.geolocation?.clearWatch(watchIdRef.current)
         watchIdRef.current = null
@@ -298,13 +361,28 @@ export function useResqMode() {
       setRiskData(null)
       setActiveEvents([])
       setRiskAlert(null)
+      setTimeRemainingMs(0)
     } catch (err) {
       setError(err.message || 'Failed to end RESQ Mode session')
       throw err
     } finally {
       setIsLoading(false)
     }
-  }, [session])
+  }, [sessionId])
+
+  // Compute formatted timer string
+  const totalSeconds = Math.floor(timeRemainingMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  const formattedTimeRemaining =
+    hours > 0
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+
+  const isTimerWarning = timeRemainingMs > 0 && timeRemainingMs <= 5 * 60 * 1000
+  const isTimerExpired = isActive && timeRemainingMs === 0 && session?.timer_expires_at
 
   return {
     session,
@@ -318,6 +396,13 @@ export function useResqMode() {
     riskTransition,
     riskAlert,
     setRiskAlert,
+    timeRemainingMs,
+    formattedTimeRemaining,
+    isTimerWarning,
+    isTimerExpired,
+    isCheckInPending,
+    checkIn,
+    extendTimer,
     startSession,
     stopSession,
     setSession,

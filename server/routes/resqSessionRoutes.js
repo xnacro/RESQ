@@ -1,4 +1,4 @@
-// RESQ Mode Session Lifecycle and Live Risk Monitoring API Routes
+// RESQ Mode Session Lifecycle, Live Risk Monitoring, and Safety Timer API Routes
 import express from "express";
 import pool from "../config/db.js";
 import { authenticate } from "../middleware/authMiddleware.js";
@@ -100,7 +100,7 @@ router.post("/location", authenticate, async (req, res) => {
     const parsedLat = parseFloat(lat);
     const parsedLon = parseFloat(lon);
 
-    // 1. Spatially resolve 500m grid cell via PostGIS ST_Contains (Assam first, then Meghalaya)
+    // Spatially resolve 500m grid cell via PostGIS ST_Contains (Assam first, then Meghalaya)
     let gridCell = null;
     try {
       const asRes = await pool.query(
@@ -135,7 +135,7 @@ router.post("/location", authenticate, async (req, res) => {
     const districtName = gridCell?.district || session.current_district || "Kamrup Metropolitan";
     const stateName = gridCell?.state || session.current_state || "Assam";
 
-    // 2. Fetch authoritative risk breakdown from RESQ dynamic risk engine
+    // Fetch authoritative risk breakdown from RESQ dynamic risk engine
     let riskBreakdown = null;
     try {
       riskBreakdown = await getDynamicRiskBreakdown(gridId);
@@ -151,13 +151,13 @@ router.post("/location", authenticate, async (req, res) => {
     const activeEvents = riskBreakdown?.activeEvents || [];
     const factorChannels = riskBreakdown?.dynamicFactorChannels || {};
 
-    // 3. Detect Risk Category Transition & Escalation
+    // Detect Risk Category Transition & Escalation
     const prevStatus = session.risk_status || "LOW";
     const prevRank = RISK_STATUS_RANKS[prevStatus] || 1;
     const currentRank = RISK_STATUS_RANKS[riskStatus] || 1;
     const isEscalation = currentRank > prevRank;
 
-    // 4. Update session snapshot
+    // Update session snapshot
     const sessionUpdates = {
       current_lat: parsedLat,
       current_lon: parsedLon,
@@ -213,7 +213,132 @@ router.post("/location", authenticate, async (req, res) => {
   }
 });
 
-// 3. Stop / Deactivate an active RESQ Mode Session
+// 3. User Safety Check-in (Resets countdown timer)
+router.post("/checkin", authenticate, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID is required for check-in",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized to check-in for this session",
+      });
+    }
+
+    if (!session.is_active) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot check in to an inactive or ended session",
+      });
+    }
+
+    const now = new Date();
+    const timerMins = session.safety_timer_minutes || 30;
+    const newExpiresAt = new Date(now.getTime() + timerMins * 60 * 1000);
+
+    const updates = {
+      last_checkin_at: now.toISOString(),
+      timer_expires_at: newExpiresAt.toISOString(),
+      status: "ACTIVE",
+    };
+
+    const updatedSession = await updateResqSession(sessionId, updates);
+
+    return res.status(200).json({
+      success: true,
+      message: "Safety check-in verified successfully",
+      sessionId,
+      session: updatedSession,
+      timer_expires_at: newExpiresAt.toISOString(),
+      last_checkin_at: now.toISOString(),
+    });
+  } catch (err) {
+    console.error("Safety check-in error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error performing safety check-in",
+    });
+  }
+});
+
+// 4. Update Safety Timer Interval / Extension
+router.post("/timer/update", authenticate, async (req, res) => {
+  try {
+    const { sessionId, safetyTimerMinutes } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId || !safetyTimerMinutes) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID and safety timer minutes are required",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized to modify safety timer for this session",
+      });
+    }
+
+    const parsedMins = parseInt(safetyTimerMinutes, 10);
+    if (isNaN(parsedMins) || parsedMins <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid safety timer minutes provided",
+      });
+    }
+
+    const now = new Date();
+    const newExpiresAt = new Date(now.getTime() + parsedMins * 60 * 1000);
+
+    const updates = {
+      safety_timer_minutes: parsedMins,
+      timer_expires_at: newExpiresAt.toISOString(),
+    };
+
+    const updatedSession = await updateResqSession(sessionId, updates);
+
+    return res.status(200).json({
+      success: true,
+      message: "Safety timer interval updated successfully",
+      sessionId,
+      session: updatedSession,
+    });
+  } catch (err) {
+    console.error("Timer update error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error updating safety timer",
+    });
+  }
+});
+
+// 5. Stop / Deactivate an active RESQ Mode Session
 router.post("/stop", authenticate, async (req, res) => {
   try {
     const { sessionId } = req.body;
@@ -258,7 +383,7 @@ router.post("/stop", authenticate, async (req, res) => {
   }
 });
 
-// 4. Get Active Session for the Authenticated User
+// 6. Get Active Session for the Authenticated User
 router.get("/active/me", authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -287,7 +412,7 @@ router.get("/active/me", authenticate, async (req, res) => {
   }
 });
 
-// 5. Read Session Details by Session ID
+// 7. Read Session Details by Session ID
 router.get("/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
