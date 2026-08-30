@@ -419,7 +419,7 @@ export default function AdminView() {
             <div className={styles.summaryTitleRow}>
               <div className={styles.aiBadge}>
                 <Zap size={13} />
-                <span>Gemini AI Incident Summary</span>
+                <span>AI Incident Summary</span>
               </div>
               <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
                 Model: {nlpSummary?.nlpModel || 'RESQ-NLP-v2.1'}
