@@ -1,5 +1,5 @@
 // Custom RESQ Cartographic Map Style Generator
-// Crafts an operational, calm, high-readability vector basemap specifically tuned for disaster intelligence
+// Crafts an operational, high-readability, high-contrast vector basemap with crisp POIs, roads, and emergency layers
 
 import { RESQ_PALETTE } from './resqCartographyTokens.js'
 
@@ -8,6 +8,9 @@ const VECTOR_SOURCE_ID = 'openmaptiles'
 const VECTOR_SOURCE_URL = 'https://tiles.openfreemap.org/planet'
 const GLYPHS_URL = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf'
 const SPRITE_URL = 'https://tiles.openfreemap.org/sprites/ofm_f384/ofm'
+
+// High-contrast place and POI label expression (supports English + regional OSM names)
+const NAME_EXPRESSION = ['coalesce', ['get', 'name:en'], ['get', 'name'], ['get', 'name:latin']]
 
 export function buildResqVectorStyle({ theme = 'light' } = {}) {
   const isDark = theme === 'dark'
@@ -51,9 +54,9 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
 
   return {
     version: 8,
-    name: `RESQ Cartography (${isDark ? 'Dark' : 'Light'})`,
+    name: `RESQ High-Contrast Cartography (${isDark ? 'Dark' : 'Light'})`,
     metadata: {
-      'resq:cartography_version': '3.0.0',
+      'resq:cartography_version': '3.5.0',
     },
     sources: {
       [VECTOR_SOURCE_ID]: {
@@ -64,7 +67,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
     glyphs: GLYPHS_URL,
     sprite: SPRITE_URL,
     layers: [
-      // 1. Background Canvas (Paper-like neutral)
+      // 1. Background Canvas
       {
         id: 'resq-background',
         type: 'background',
@@ -73,7 +76,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 2. Landcover & Natural Areas (Understated)
+      // 2. Landcover & Natural Areas
       {
         id: 'resq-landcover-glacier',
         type: 'fill',
@@ -116,7 +119,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         'source-layer': 'park',
         paint: {
           'fill-color': p.park,
-          'fill-opacity': 0.7,
+          'fill-opacity': 0.75,
         },
       },
       {
@@ -175,10 +178,10 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
             6, 1.2,
-            12, 3,
-            16, 6,
+            12, 3.5,
+            16, 7,
           ],
-          'line-opacity': 0.85,
+          'line-opacity': 0.9,
         },
       },
       {
@@ -192,10 +195,10 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
           'line-color': p.waterLine,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            11, 0.75,
-            16, 2,
+            11, 0.8,
+            16, 2.5,
           ],
-          'line-opacity': 0.65,
+          'line-opacity': 0.75,
         },
       },
 
@@ -213,7 +216,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 6. Road Network Hierarchy (Clean neutral/slate/white hierarchy)
+      // 6. Road Network Hierarchy (High-contrast casing and bright fills)
       {
         id: 'resq-road-path',
         type: 'line',
@@ -222,7 +225,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         filter: ['match', ['get', 'class'], ['path', 'track', 'pedestrian', 'footway'], true, false],
         minzoom: 13,
         paint: {
-          'line-color': isDark ? '#334155' : '#cbd5e1',
+          'line-color': isDark ? '#334155' : '#94a3b8',
           'line-dasharray': [2, 2],
           'line-width': 1,
         },
@@ -235,11 +238,11 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         filter: ['match', ['get', 'class'], ['minor', 'residential', 'service'], true, false],
         minzoom: 12,
         paint: {
-          'line-color': isDark ? '#1e293b' : '#e8ecf1',
+          'line-color': isDark ? '#1e293b' : '#cbd5e1',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            12, 1.2,
-            16, 3.5,
+            12, 1.5,
+            16, 4.0,
           ],
         },
       },
@@ -254,8 +257,8 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
           'line-color': p.roadFill,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            12, 0.6,
-            16, 2.0,
+            12, 0.75,
+            16, 2.5,
           ],
         },
       },
@@ -265,13 +268,13 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
-        minzoom: 9,
+        minzoom: 8,
         paint: {
-          'line-color': isDark ? '#334155' : '#d1dbe6',
+          'line-color': isDark ? '#334155' : '#94a3b8',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            9, 1.5,
-            16, 5.5,
+            8, 1.8,
+            16, 6.0,
           ],
         },
       },
@@ -281,13 +284,13 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
-        minzoom: 9,
+        minzoom: 8,
         paint: {
           'line-color': p.roadFill,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            9, 1.0,
-            16, 4.0,
+            8, 1.0,
+            16, 4.5,
           ],
         },
       },
@@ -297,14 +300,14 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['primary', 'trunk'], true, false],
-        minzoom: 6,
+        minzoom: 5,
         paint: {
-          'line-color': isDark ? '#475569' : '#94a3b8',
+          'line-color': isDark ? '#475569' : '#64748b',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            6, 1.8,
-            12, 3.5,
-            16, 7.5,
+            5, 2.0,
+            12, 4.0,
+            16, 8.5,
           ],
         },
       },
@@ -314,14 +317,14 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['primary', 'trunk'], true, false],
-        minzoom: 6,
+        minzoom: 5,
         paint: {
           'line-color': p.roadFill,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            6, 1.0,
-            12, 2.2,
-            16, 5.5,
+            5, 1.2,
+            12, 2.5,
+            16, 6.5,
           ],
         },
       },
@@ -331,14 +334,14 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['==', ['get', 'class'], 'motorway'],
-        minzoom: 5,
+        minzoom: 4,
         paint: {
-          'line-color': isDark ? '#64748b' : '#7c8ba1',
+          'line-color': isDark ? '#64748b' : '#334155',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            5, 2.0,
-            12, 4.5,
-            16, 9.0,
+            4, 2.2,
+            12, 5.0,
+            16, 10.0,
           ],
         },
       },
@@ -348,25 +351,25 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['==', ['get', 'class'], 'motorway'],
-        minzoom: 5,
+        minzoom: 4,
         paint: {
           'line-color': p.roadFill,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            5, 1.2,
-            12, 3.0,
-            16, 7.0,
+            4, 1.4,
+            12, 3.5,
+            16, 8.0,
           ],
         },
       },
 
-      // 7. Subtle 2D Building Footprints (High Zoom only)
+      // 7. Subtle 2D Building Footprints (High Zoom)
       {
         id: 'resq-building-fill',
         type: 'fill',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'building',
-        minzoom: 13.5,
+        minzoom: 13,
         paint: {
           'fill-color': p.building,
           'fill-outline-color': p.buildingStroke,
@@ -381,10 +384,10 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'boundary',
         filter: ['>=', ['get', 'admin_level'], 4],
-        minzoom: 8,
+        minzoom: 7,
         paint: {
-          'line-color': isDark ? '#475569' : '#cbd5e1',
-          'line-width': 0.8,
+          'line-color': isDark ? '#475569' : '#94a3b8',
+          'line-width': 1.0,
           'line-dasharray': [2, 2],
         },
       },
@@ -396,8 +399,8 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         filter: ['<=', ['get', 'admin_level'], 3],
         paint: {
           'line-color': p.boundary,
-          'line-width': 1.2,
-          'line-dasharray': [3, 2],
+          'line-width': 1.5,
+          'line-dasharray': [4, 2],
         },
       },
 
@@ -408,9 +411,9 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'water_name',
         layout: {
-          'text-field': '{name}',
+          'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Italic'],
-          'text-size': 11,
+          'text-size': 11.5,
           'text-letter-spacing': 0.05,
           'symbol-placement': 'line',
         },
@@ -421,21 +424,21 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 10. Road Hierarchy Labels (Major highways only)
+      // 10. Road Hierarchy Labels
       {
         id: 'resq-label-road-major',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation_name',
-        filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], true, false],
-        minzoom: 11,
+        filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
+        minzoom: 10,
         layout: {
-          'text-field': '{name}',
+          'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Regular'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
-            11, 9,
-            15, 11.5,
+            10, 9.5,
+            15, 12,
           ],
           'symbol-placement': 'line',
         },
@@ -446,18 +449,119 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 11. Place Labels (Towns, Localities, Cities with strict hierarchy)
+      // 11. Points of Interest (POIs) — Emergency, Transit, Landmarks, Civic
+      {
+        id: 'resq-poi-emergency',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'poi',
+        filter: ['match', ['get', 'class'], ['hospital', 'police', 'fire_station', 'doctor', 'pharmacy', 'emergency'], true, false],
+        minzoom: 11,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 11.5,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.4],
+        },
+        paint: {
+          'text-color': RESQ_PALETTE.POI_HOSPITAL,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+        },
+      },
+      {
+        id: 'resq-poi-transit',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'poi',
+        filter: ['match', ['get', 'class'], ['railway', 'bus', 'ferry', 'airport'], true, false],
+        minzoom: 10.5,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 11,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.4],
+        },
+        paint: {
+          'text-color': RESQ_PALETTE.POI_TRANSIT,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+        },
+      },
+      {
+        id: 'resq-poi-airport',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'aerodrome_label',
+        minzoom: 8,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 12,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.4],
+        },
+        paint: {
+          'text-color': RESQ_PALETTE.POI_AIRPORT,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+        },
+      },
+      {
+        id: 'resq-poi-civic',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'poi',
+        filter: ['match', ['get', 'class'], ['college', 'school', 'university', 'townhall', 'courthouse', 'post_office', 'bank', 'fuel', 'place_of_worship'], true, false],
+        minzoom: 13,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 10.5,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.3],
+        },
+        paint: {
+          'text-color': RESQ_PALETTE.POI_CIVIC,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      },
+      {
+        id: 'resq-poi-general',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'poi',
+        filter: ['match', ['get', 'class'], ['hospital', 'police', 'fire_station', 'doctor', 'pharmacy', 'emergency', 'railway', 'bus', 'ferry', 'airport', 'college', 'school', 'university', 'townhall', 'courthouse', 'post_office', 'bank', 'fuel', 'place_of_worship'], false, true],
+        minzoom: 14,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 10,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.3],
+        },
+        paint: {
+          'text-color': RESQ_PALETTE.POI_COMMERCIAL,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      },
+
+      // 12. Place Labels (Towns, Localities, Cities with high contrast)
       {
         id: 'resq-label-place-suburb',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
         filter: ['match', ['get', 'class'], ['neighbourhood', 'suburb', 'village'], true, false],
-        minzoom: 12.5,
+        minzoom: 11.5,
         layout: {
-          'text-field': '{name}',
+          'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Regular'],
-          'text-size': 10.5,
+          'text-size': 11,
         },
         paint: {
           'text-color': p.labelMuted,
@@ -471,14 +575,14 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
         filter: ['match', ['get', 'class'], ['town', 'district'], true, false],
-        minzoom: 8,
+        minzoom: 7,
         layout: {
-          'text-field': '{name}',
+          'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
-            8, 11,
-            13, 13.5,
+            7, 11,
+            13, 14,
           ],
         },
         paint: {
@@ -494,13 +598,13 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         'source-layer': 'place',
         filter: ['match', ['get', 'class'], ['city', 'state', 'country'], true, false],
         layout: {
-          'text-field': '{name}',
+          'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
-            5, 11.5,
-            10, 14.5,
-            14, 17,
+            4, 12,
+            10, 15,
+            14, 18,
           ],
           'text-transform': 'uppercase',
           'text-letter-spacing': 0.04,

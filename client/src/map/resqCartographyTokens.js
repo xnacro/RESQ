@@ -2,64 +2,74 @@
 // Defines consistent palettes for basemap geometry, typography, risk states, and operational overlays
 
 export const RESQ_PALETTE = Object.freeze({
-  // Land & Surface (Ultra-calm, paper-like neutral baseline)
-  LAND: '#fbfcfd',
-  LAND_ALTERNATE: '#f4f6f8',
-  URBAN: '#f0f3f6',
-  PARK: '#eef6f0',
-  FOREST: '#e5f2e8',
-  SAND: '#fbf7ed',
+  // Land & Surface (Crisp, clean neutral baseline)
+  LAND: '#f8fafc',
+  LAND_ALTERNATE: '#f1f5f9',
+  URBAN: '#e2e8f0',
+  PARK: '#dcfce7',
+  FOREST: '#d1fae5',
+  SAND: '#fef3c7',
 
-  // Water & Rivers (Calm, readable for flood intelligence)
-  WATER: '#e3edf7',
-  WATER_DEEP: '#d0e2f2',
-  WATER_LINE: '#7aa2c7',
-  WATER_STREAM: '#9dbddc',
+  // Water & Rivers (Crisp, distinct blue for flood intelligence)
+  WATER: '#dbeafe',
+  WATER_DEEP: '#bfdbfe',
+  WATER_LINE: '#0284c7',
+  WATER_STREAM: '#38bdf8',
 
-  // Buildings & Footprints (Invisible at low zoom, clean subtle outlines at high zoom)
+  // Buildings & Footprints
   BUILDING: '#ffffff',
-  BUILDING_STROKE: '#e8ecf1',
+  BUILDING_STROKE: '#cbd5e1',
   BUILDING_3D_LOW: '#e2e8f0',
   BUILDING_3D_MID: '#cbd5e1',
   BUILDING_3D_HIGH: '#94a3b8',
 
-  // Administrative Boundaries (Understated, non-competing)
-  BOUNDARY_COUNTRY: '#64748b',
-  BOUNDARY_STATE: '#94a3b8',
-  BOUNDARY_DISTRICT: '#cbd5e1',
+  // Administrative Boundaries
+  BOUNDARY_COUNTRY: '#475569',
+  BOUNDARY_STATE: '#64748b',
+  BOUNDARY_DISTRICT: '#94a3b8',
 
-  // Road Network Hierarchy (Neutral, slate, white hierarchy; no strong orange/yellow)
+  // Road Network Hierarchy (Crisp slate casing and bright fills)
   ROAD_MOTORWAY: '#ffffff',
-  ROAD_MOTORWAY_CASING: '#7c8ba1',
+  ROAD_MOTORWAY_CASING: '#334155',
   ROAD_TRUNK: '#ffffff',
-  ROAD_TRUNK_CASING: '#94a3b8',
+  ROAD_TRUNK_CASING: '#475569',
   ROAD_PRIMARY: '#ffffff',
-  ROAD_PRIMARY_CASING: '#b8c4d4',
+  ROAD_PRIMARY_CASING: '#64748b',
   ROAD_SECONDARY: '#ffffff',
-  ROAD_SECONDARY_CASING: '#d1dbe6',
+  ROAD_SECONDARY_CASING: '#94a3b8',
   ROAD_TERTIARY: '#ffffff',
-  ROAD_TERTIARY_CASING: '#e2e8f0',
+  ROAD_TERTIARY_CASING: '#cbd5e1',
   ROAD_RESIDENTIAL: '#ffffff',
-  ROAD_RESIDENTIAL_CASING: '#f1f5f9',
-  ROAD_PATH: '#cbd5e1',
-  ROAD_TUNNEL_CASING: '#94a3b8',
+  ROAD_RESIDENTIAL_CASING: '#e2e8f0',
+  ROAD_PATH: '#94a3b8',
+  ROAD_TUNNEL_CASING: '#64748b',
 
-  // Typography & Labels (High contrast, crisp halos, reduced visual clutter)
+  // Typography & Labels (High contrast slate-900 / slate-800 with crisp 1.5px white halos)
   LABEL_CITY: '#0f172a',
   LABEL_TOWN: '#1e293b',
-  LABEL_LOCALITY: '#475569',
-  LABEL_SUBURB: '#64748b',
-  LABEL_ROAD: '#475569',
-  LABEL_WATER: '#2d6a9f',
-  LABEL_PARK: '#2e7d32',
+  LABEL_LOCALITY: '#334155',
+  LABEL_SUBURB: '#475569',
+  LABEL_ROAD: '#334155',
+  LABEL_WATER: '#0369a1',
+  LABEL_PARK: '#15803d',
   LABEL_HALO: '#ffffff',
+
+  // POI & Infrastructure Colors (High readability operational markers)
+  POI_EMERGENCY: '#dc2626',
+  POI_HOSPITAL: '#b91c1c',
+  POI_POLICE: '#1d4ed8',
+  POI_FIRE: '#c2410c',
+  POI_TRANSIT: '#0369a1',
+  POI_AIRPORT: '#0f172a',
+  POI_CIVIC: '#334155',
+  POI_COMMERCIAL: '#475569',
 
   // Dark Theme Cartography Palette
   DARK_LAND: '#0b1120',
   DARK_LAND_ALTERNATE: '#111827',
   DARK_URBAN: '#1e293b',
   DARK_WATER: '#0c2438',
-  DARK_WATER_LINE: '#1e4976',
+  DARK_WATER_LINE: '#38bdf8',
   DARK_BUILDING: '#1e293b',
   DARK_BUILDING_STROKE: '#334155',
   DARK_ROAD_PRIMARY: '#334155',
@@ -74,7 +84,7 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'LOW',
     label: 'Low',
     color: '#10b981',
-    fillRgba: 'rgba(16, 185, 129, 0.08)',
+    fillRgba: 'rgba(16, 185, 129, 0.10)',
     lineRgba: 'rgba(16, 185, 129, 0.0)',
     badgeBg: '#ecfdf5',
     badgeBorder: '#a7f3d0',
@@ -84,8 +94,8 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'MODERATE',
     label: 'Moderate',
     color: '#f59e0b',
-    fillRgba: 'rgba(245, 158, 11, 0.20)',
-    lineRgba: 'rgba(245, 158, 11, 0.45)',
+    fillRgba: 'rgba(245, 158, 11, 0.22)',
+    lineRgba: 'rgba(245, 158, 11, 0.50)',
     badgeBg: '#fffbeb',
     badgeBorder: '#fde68a',
     description: 'Caution / Moderate Susceptibility',
@@ -94,8 +104,8 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'HIGH',
     label: 'High',
     color: '#ea580c',
-    fillRgba: 'rgba(234, 88, 12, 0.32)',
-    lineRgba: 'rgba(234, 88, 12, 0.75)',
+    fillRgba: 'rgba(234, 88, 12, 0.35)',
+    lineRgba: 'rgba(234, 88, 12, 0.80)',
     badgeBg: '#fff7ed',
     badgeBorder: '#fed7aa',
     description: 'Danger / Heightened Risk',
@@ -104,7 +114,7 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'CRITICAL',
     label: 'Critical',
     color: '#dc2626',
-    fillRgba: 'rgba(220, 38, 38, 0.45)',
+    fillRgba: 'rgba(220, 38, 38, 0.48)',
     lineRgba: 'rgba(220, 38, 38, 0.95)',
     badgeBg: '#fef2f2',
     badgeBorder: '#fecaca',
