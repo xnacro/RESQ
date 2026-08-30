@@ -42,6 +42,7 @@ export function MapSurface({
   selectedGridGeometry = null,
   selectedGridStatus = null,
   routeData = null,
+  navigationMode = 'idle',
 }) {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -634,18 +635,20 @@ export function MapSurface({
           ? { top: 70, bottom: 260, left: 30, right: 30 }
           : { top: 80, bottom: 80, left: 80, right: 440 }
 
-        map.fitBounds(
-          [
-            [minLon, minLat],
-            [maxLon, maxLat],
-          ],
-          {
-            padding,
-            maxZoom: 15,
-            duration: 1200,
-            essential: true,
-          }
-        )
+        if (navigationMode === 'preview') {
+          map.fitBounds(
+            [
+              [minLon, minLat],
+              [maxLon, maxLat],
+            ],
+            {
+              padding,
+              maxZoom: 15,
+              duration: 1200,
+              essential: true,
+            }
+          )
+        }
       } else {
         source.setData({ type: 'FeatureCollection', features: [] })
         if (originMarkerRef.current) {
@@ -664,7 +667,7 @@ export function MapSurface({
     } else {
       map.once('style.load', applyRoute)
     }
-  }, [routeData, mapReady])
+  }, [routeData, navigationMode, mapReady])
 
   return (
     <div className={styles.wrapper}>

@@ -7,6 +7,8 @@ import { ContextPanel } from '../panels/ContextPanel.jsx'
 import { MobileBottomSheet } from '../panels/MobileBottomSheet.jsx'
 import { ResqModeModal } from '../panels/ResqModeModal.jsx'
 import { SourceAddressModal } from '../panels/SourceAddressModal.jsx'
+import { ResqNavigationOverlay } from '../navigation/ResqNavigationOverlay.jsx'
+import { useResqDrivingMode } from '../navigation/useResqDrivingMode.js'
 import { MAP_MODES } from '../map/mapStyles.js'
 import {
   getDeviceCoordinates,
@@ -20,6 +22,7 @@ import styles from './MapView.module.css'
 
 export default function MapView() {
   const [mode, setMode] = useState(MAP_MODES.NORMAL)
+  const [mapInstance, setMapInstance] = useState(null)
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [selectedGridId, setSelectedGridId] = useState(null)
   const [selectedGridGeometry, setSelectedGridGeometry] = useState(null)
@@ -33,6 +36,7 @@ export default function MapView() {
     origin: routeOrigin,
     destination: routeDestination,
     routeData,
+    navigationMode,
     isRouting,
     routingError,
     isSourceModalOpen,
@@ -40,9 +44,18 @@ export default function MapView() {
     openSourceModal,
     closeSourceModal,
     calculateRoutePlan,
+    startDriving,
     clearRoute,
-    setNavigationMode,
+    hydrateNavigationSession,
   } = useRouteStore()
+
+  // Driving mode controller hook attached to active MapLibre instance
+  const { recenter } = useResqDrivingMode(mapInstance)
+
+  // Hydrate saved navigation session on initial load
+  useEffect(() => {
+    hydrateNavigationSession()
+  }, [hydrateNavigationSession])
 
   // Keep destination synced with currently selected location
   const handleSelectLocation = useCallback((loc) => {
@@ -238,6 +251,8 @@ export default function MapView() {
     handleLocateMe()
   }, [handleLocateMe])
 
+  const isDriving = navigationMode === 'driving'
+
   return (
     <MapViewportProvider>
       <div className={styles.screen}>
@@ -248,12 +263,19 @@ export default function MapView() {
             selectedGridGeometry={selectedGridGeometry}
             selectedGridStatus={riskData?.riskSummary?.riskStatus}
             routeData={routeData}
+            navigationMode={navigationMode}
             onGridSelect={handleGridSelect}
             onEventSelect={handleEventSelect}
+            onMapReady={setMapInstance}
           />
 
+          {/* Fullscreen Driving Navigation Overlay */}
+          {isDriving && (
+            <ResqNavigationOverlay onRecenter={recenter} />
+          )}
+
           {/* Route calculation error toast */}
-          {routingError && (
+          {routingError && !isDriving && (
             <div className={styles.geoBanner} style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#b91c1c' }}>
               <span>{routingError}</span>
               <button
@@ -267,7 +289,7 @@ export default function MapView() {
             </div>
           )}
 
-          {geoError && !routingError && (
+          {geoError && !routingError && !isDriving && (
             <div className={styles.geoBanner}>
               <span>{geoError}</span>
               <button
@@ -281,33 +303,39 @@ export default function MapView() {
             </div>
           )}
 
-          <MapChrome
-            activeMode={mode}
-            onModeChange={setMode}
-            onLocateMe={handleLocateMe}
-            isLocating={geoState === GEOLOCATION_STATE.LOCATING}
-          />
+          {!isDriving && (
+            <MapChrome
+              activeMode={mode}
+              onModeChange={setMode}
+              onLocateMe={handleLocateMe}
+              isLocating={geoState === GEOLOCATION_STATE.LOCATING}
+            />
+          )}
 
-          <MobileBottomSheet
-            riskData={riskData}
-            selectedLocation={selectedLocation}
-            onOpenResqMode={openSourceModal}
-          />
+          {!isDriving && (
+            <MobileBottomSheet
+              riskData={riskData}
+              selectedLocation={selectedLocation}
+              onOpenResqMode={openSourceModal}
+            />
+          )}
         </div>
 
-        <ContextPanel
-          selectedGridId={selectedGridId}
-          selectedLocation={selectedLocation}
-          onLocateMe={handleLocateMe}
-          onSelectQuickPlace={handleSelectQuickPlace}
-          onOpenResqMode={() => setIsResqModeOpen(true)}
-          onGetDirections={openSourceModal}
-          routeData={routeData}
-          routeOrigin={routeOrigin}
-          routeDestination={routeDestination || selectedLocation}
-          onStartNavigation={() => setNavigationMode('driving')}
-          onClearRoute={clearRoute}
-        />
+        {!isDriving && (
+          <ContextPanel
+            selectedGridId={selectedGridId}
+            selectedLocation={selectedLocation}
+            onLocateMe={handleLocateMe}
+            onSelectQuickPlace={handleSelectQuickPlace}
+            onOpenResqMode={() => setIsResqModeOpen(true)}
+            onGetDirections={openSourceModal}
+            routeData={routeData}
+            routeOrigin={routeOrigin}
+            routeDestination={routeDestination || selectedLocation}
+            onStartNavigation={startDriving}
+            onClearRoute={clearRoute}
+          />
+        )}
 
         {/* Origin Selection Modal */}
         <SourceAddressModal

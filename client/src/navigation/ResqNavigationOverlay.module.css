@@ -1,0 +1,436 @@
+/* Fullscreen Turn-by-Turn Navigation Overlay Layout */
+.overlayRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px)
+    env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px);
+  box-sizing: border-box;
+}
+
+/* TOP MANEUVER SECTION */
+.topSection {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Off-Route Alert Banner */
+.offRouteBanner {
+  background: #f59e0b;
+  color: #0f172a;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+  animation: pulseAlert 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulseAlert {
+  from { transform: scale(0.99); opacity: 0.95; }
+  to { transform: scale(1.01); opacity: 1; }
+}
+
+.alertIcon {
+  flex-shrink: 0;
+}
+
+/* Destination Arrival Banner */
+.arrivalBanner {
+  background: #10b981;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+}
+
+.arrivalIcon {
+  flex-shrink: 0;
+}
+
+.arrivalTitle {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.arrivalSubtitle {
+  display: block;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* Active Maneuver Card */
+.maneuverCard {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  color: #ffffff;
+  overflow: hidden;
+  box-shadow:
+    0 16px 32px rgba(15, 23, 42, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.maneuverMainRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.iconCircle {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.turnIcon {
+  color: #ffffff;
+}
+
+.instructionDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.distanceMetric {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  color: #38bdf8;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.primaryInstruction {
+  margin: 4px 0 0 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.25;
+}
+
+.streetName {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Next Step Preview Row */
+.nextStepRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(30, 41, 59, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.nextTag {
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.nextIcon {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.nextInstruction {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* RECENTER BUTTON */
+.recenterContainer {
+  position: absolute;
+  right: 20px;
+  bottom: 120px;
+  pointer-events: auto;
+}
+
+.recenterBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+  transition: all 0.15s ease;
+}
+
+.recenterBtn:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+/* BOTTOM HUD SECTION */
+.bottomSection {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+
+.hudCard {
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 14px 20px;
+  color: #ffffff;
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.45),
+    0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metricGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.etaValue,
+.distValue,
+.speedValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+}
+
+.metricUnit {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.metricSub {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Action Control Strip */
+.actionStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.exitBtn {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.exitBtn:hover {
+  background: rgba(239, 68, 68, 0.35);
+  color: #ffffff;
+}
+
+/* STEPS DRAWER MODAL */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.drawerCard {
+  width: 100%;
+  max-width: 480px;
+  max-height: 70vh;
+  background: #ffffff;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.25);
+  animation: slideUpDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpDrawer {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.drawerTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.drawerCloseBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepsList {
+  padding: 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stepItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.stepActive {
+  background: #eff6ff;
+  border-color: #2563eb;
+}
+
+.stepPassed {
+  opacity: 0.55;
+}
+
+.stepIconBox {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stepActive .stepIconBox {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.stepInfo {
+  flex: 1;
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.stepSub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+@media (min-width: 768px) {
+  .drawerOverlay {
+    align-items: center;
+    padding: 20px;
+  }
+
+  .drawerCard {
+    border-radius: 20px;
+    max-height: 80vh;
+  }
+}

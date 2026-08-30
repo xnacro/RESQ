@@ -78,7 +78,10 @@ export async function checkRoutingHealth() {
   }
 }
 
+export const calculateRoute = getRoute;
+
 export default {
   getRoute,
+  calculateRoute,
   checkRoutingHealth,
 };
