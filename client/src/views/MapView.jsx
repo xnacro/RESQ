@@ -9,6 +9,7 @@ import { ResqModeModal } from '../panels/ResqModeModal.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
 import {
   getDeviceCoordinates,
+  reverseGeocodeLocation,
   searchLocations,
   GEOLOCATION_STATE,
 } from '../services/locationApi.js'
@@ -25,7 +26,7 @@ export default function MapView() {
   const [geoError, setGeoError] = useState(null)
   const [isResqModeOpen, setIsResqModeOpen] = useState(false)
 
-  // 1. Real-Time Browser Geolocation Handler
+  // 1. Real-Time Browser Geolocation Handler with Reverse Geocode Resolution
   const handleLocateMe = useCallback(async () => {
     setGeoState(GEOLOCATION_STATE.LOCATING)
     setGeoError(null)
@@ -34,17 +35,27 @@ export default function MapView() {
       const coords = await getDeviceCoordinates()
       setGeoState(GEOLOCATION_STATE.LOCATED)
 
+      // Fetch reverse geocode and PostGIS risk in parallel
+      const [reverseInfo, pointRisk] = await Promise.all([
+        reverseGeocodeLocation(coords.lat, coords.lon).catch(() => null),
+        getCurrentGridRisk(coords.lat, coords.lon).catch(() => null),
+      ])
+
+      const placeName = reverseInfo?.name || (pointRisk?.district ? `${pointRisk.district}` : 'Your Location')
+      const districtName = reverseInfo?.district || pointRisk?.district || 'Kamrup Metropolitan'
+      const stateName = reverseInfo?.state || pointRisk?.state || 'Assam'
+
       setSelectedLocation({
-        name: 'Your Location',
-        district: `GPS Accuracy: ±${coords.accuracy}m`,
-        state: 'Live Device Geolocation',
+        name: placeName,
+        district: districtName,
+        state: stateName,
         lat: coords.lat,
         lon: coords.lon,
         accuracy: coords.accuracy,
+        gridId: pointRisk?.gridId || null,
+        isLiveGps: true,
       })
 
-      // Resolve coordinates to 500m grid cell via PostGIS ST_Contains
-      const pointRisk = await getCurrentGridRisk(coords.lat, coords.lon)
       if (pointRisk && pointRisk.inCoverage) {
         setSelectedGridId(pointRisk.gridId)
         setSelectedGridGeometry(pointRisk.geometry)
@@ -63,7 +74,7 @@ export default function MapView() {
       const fallbackLat = 26.1445
       const fallbackLon = 91.7362
       setSelectedLocation({
-        name: 'Guwahati (Default Demonstration GPS)',
+        name: 'Guwahati (Demonstration Center)',
         district: 'Kamrup Metropolitan',
         state: 'Assam',
         lat: fallbackLat,

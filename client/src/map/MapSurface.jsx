@@ -1,12 +1,18 @@
 // MapLibre WebGL vector map substrate for RESQ disaster intelligence
 import { useEffect, useRef, useState, useCallback } from 'react'
-import * as maplibregl from 'maplibre-gl'
+import * as maplibreModule from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { getMapStyle, MAP_MODES } from './mapStyles.js'
 import { GUWAHATI_CENTER, DEFAULT_ZOOM } from './constants.js'
 import { useViewportStore, useCursorStore } from './viewportContext.js'
 import { getViewportGrids, getActiveDisasterEvents } from '../services/api.js'
 import styles from './MapSurface.module.css'
+
+// Resolve MapLibre constructor safely for both ESM namespace and default exports
+const ml = maplibreModule.default || maplibreModule
+const MapClass = ml.Map || maplibreModule.Map
+const MarkerClass = ml.Marker || maplibreModule.Marker
+const PopupClass = ml.Popup || maplibreModule.Popup
 
 // Inject pulsing marker keyframe animation once
 const PULSE_STYLE_ID = 'resq-pulse-keyframes'
@@ -248,7 +254,7 @@ export function MapSurface({
             </div>
           `
 
-          popupRef.current = new maplibregl.Popup({ offset: 12 })
+          popupRef.current = new PopupClass({ offset: 12 })
             .setLngLat(coords)
             .setHTML(popupHtml)
             .addTo(map)
@@ -404,7 +410,7 @@ export function MapSurface({
             </div>
           </div>
         `
-        markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+        markerRef.current = new MarkerClass({ element: el, anchor: 'center' })
           .setLngLat([lon, lat])
           .addTo(map)
       } else {
@@ -436,7 +442,7 @@ export function MapSurface({
 
     const initialStyle = getMapStyle(modeRef.current)
 
-    const map = new maplibregl.Map({
+    const map = new MapClass({
       container: mapContainerRef.current,
       style: initialStyle,
       center: GUWAHATI_CENTER,

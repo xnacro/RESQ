@@ -394,6 +394,38 @@ export const getDynamicRiskBreakdown = async (gridId) => {
       [gridId]
     );
 
+    // 3. Fetch regional active disaster bulletins for the district & state
+    const regionalRes = await client.query(
+      `
+      SELECT 
+        e.id AS event_id,
+        e.event_type,
+        e.hazard_type,
+        e.severity,
+        e.confidence,
+        e.location_text,
+        e.district,
+        e.state,
+        e.road_blocked,
+        e.bridge_damaged,
+        e.bridge_closed,
+        e.reported_at,
+        i.title AS news_title,
+        i.url AS news_url,
+        s.name AS source_name,
+        s.reliability_tier
+      FROM disaster.news_events e
+      LEFT JOIN news.rss_items i ON e.rss_item_id = i.id
+      LEFT JOIN news.rss_sources s ON i.source_id = s.id
+      WHERE e.event_status = 'ACTIVE' 
+        AND (e.valid_until IS NULL OR e.valid_until > NOW())
+        AND (e.state = $1 OR e.district = $2 OR $2 IS NULL)
+      ORDER BY e.severity DESC, e.reported_at DESC
+      LIMIT 25;
+    `,
+      [cell.state || "Assam", cell.district || null]
+    );
+
     return {
       gridId: cell.grid_id,
       state: cell.state,
@@ -432,6 +464,7 @@ export const getDynamicRiskBreakdown = async (gridId) => {
         infrastructureExposure: cell.infrastructure_exposure,
       },
       activeEvents: eventsRes.rows,
+      regionalEvents: regionalRes.rows,
     };
   } finally {
     client.release();

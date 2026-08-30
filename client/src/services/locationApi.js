@@ -55,9 +55,23 @@ export function getDeviceCoordinates() {
           message: err.message,
         })
       },
-      GEOLOCATION_CONFIG
+      GEOLOCATION_CONFIG,
     )
   })
+}
+
+// Reverse geocodes coordinates to human-readable locality and district
+export async function reverseGeocodeLocation(lat, lon) {
+  if (lat == null || lon == null) return null
+  try {
+    const res = await fetch(`${API_BASE}/geocode/reverse?lat=${lat}&lon=${lon}`)
+    if (!res.ok) throw new Error(`Reverse geocode failed: HTTP ${res.status}`)
+    const json = await res.json()
+    return json.data || null
+  } catch (err) {
+    console.error('reverseGeocodeLocation error:', err.message)
+    return null
+  }
 }
 
 // Searches regional places, towns, districts, bridges, and grid IDs
@@ -78,5 +92,6 @@ export default {
   GEOLOCATION_CONFIG,
   GEOLOCATION_STATE,
   getDeviceCoordinates,
+  reverseGeocodeLocation,
   searchLocations,
 }

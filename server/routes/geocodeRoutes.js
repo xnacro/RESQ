@@ -25,6 +25,121 @@ const CORRIDOR_COORDINATES = Object.freeze({
   "Dhola-Sadiya Bridge": { lat: 27.7900, lon: 95.6600, state: "Assam" },
 });
 
+// Helper: Haversine distance in kilometers
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// GET /api/geocode/reverse?lat=26.1445&lon=91.7362 - Reverse geocoding to locality and district
+router.get("/reverse", async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lon = parseFloat(req.query.lon);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({
+        success: false,
+        error: "Valid numeric 'lat' and 'lon' query parameters are required.",
+      });
+    }
+
+    // 1. Find nearest town / locality in gazetteer
+    let closestLocality = null;
+    let minLocalityDist = Infinity;
+
+    for (const item of LOCALITY_GAZETTEER) {
+      const dist = getDistanceKm(lat, lon, item.lat, item.lon);
+      if (dist < minLocalityDist) {
+        minLocalityDist = dist;
+        closestLocality = item;
+      }
+    }
+
+    // 2. Find nearest district centroid
+    let closestDistrict = null;
+    let minDistrictDist = Infinity;
+
+    for (const [name, data] of Object.entries(DISTRICT_CENTROIDS)) {
+      const dist = getDistanceKm(lat, lon, data.lat, data.lon);
+      if (dist < minDistrictDist) {
+        minDistrictDist = dist;
+        closestDistrict = { name, ...data };
+      }
+    }
+
+    // 3. Query PostGIS to get exact containing grid cell and district name
+    let cellInfo = null;
+    try {
+      const gridRes = await pool.query(
+        `SELECT grid_id, state, district, block
+         FROM grid_500m.assam
+         WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))
+         LIMIT 1;`,
+        [lon, lat]
+      );
+      if (gridRes.rows.length > 0) {
+        cellInfo = gridRes.rows[0];
+      } else {
+        const mlRes = await pool.query(
+          `SELECT grid_id, state, district, block
+           FROM grid_500m.meghalaya
+           WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))
+           LIMIT 1;`,
+          [lon, lat]
+        );
+        if (mlRes.rows.length > 0) {
+          cellInfo = mlRes.rows[0];
+        }
+      }
+    } catch (e) {
+      console.warn("Reverse geocode grid lookup warning:", e.message);
+    }
+
+    // Construct human-readable place description
+    const localityName = closestLocality && minLocalityDist < 25 ? closestLocality.name : null;
+    const districtName =
+      cellInfo?.district ||
+      closestLocality?.district ||
+      closestDistrict?.name ||
+      "Kamrup Metropolitan";
+    const stateName = cellInfo?.state || closestLocality?.state || closestDistrict?.state || "Assam";
+
+    const displayName = localityName
+      ? `${localityName}`
+      : `${districtName}`;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        name: displayName,
+        locality: localityName,
+        district: districtName,
+        state: stateName,
+        gridId: cellInfo?.grid_id || null,
+        distanceToLocalityKm: Math.round(minLocalityDist * 10) / 10,
+        lat,
+        lon,
+      },
+    });
+  } catch (error) {
+    console.error("Reverse geocoding error:", error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // GET /api/geocode?q=<query> - Search places, districts, towns, rivers, highways, and bridges
 router.get("/", async (req, res) => {
   try {
@@ -67,7 +182,7 @@ router.get("/", async (req, res) => {
       }
     }
 
-    // 2. Search Regional Towns and Localities Gazetteer (Array of objects)
+    // 2. Search Regional Towns and Localities Gazetteer
     for (const item of LOCALITY_GAZETTEER) {
       const lowerName = item.name.toLowerCase();
       if (lowerName.includes(query) || query.includes(lowerName)) {

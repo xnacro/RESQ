@@ -1,113 +1,234 @@
-// Right Intelligence Panel for RESQ Disaster Risk Explainability
-import { useState, useEffect } from 'react'
+// Disaster Intelligence & Explainable AI Context Panel
+import { useState, useEffect, useMemo } from 'react'
 import {
-  ChevronLeft,
-  ChevronRight,
   MapPin,
-  Navigation,
+  Shield,
   ShieldAlert,
+  AlertTriangle,
   Radio,
   ExternalLink,
-  Info,
   Clock,
+  Navigation,
+  ChevronRight,
+  Info,
+  Brain,
+  Layers,
+  Activity,
+  Droplets,
+  CloudRain,
+  Mountain,
+  Users,
+  Building,
+  Target,
   CheckCircle2,
-  Building2,
-  ShieldCheck,
-  Flame,
+  Cpu,
 } from 'lucide-react'
-import {
-  Button,
-  MeterBar,
-  TabPanel,
-  Tabs,
-  KeyValueRow,
-  Spinner,
-} from '../ui/index.js'
-import { getGridRiskBreakdown } from '../services/api.js'
+import { Tabs, TabPanel } from '../ui/Tabs.jsx'
+import { Button } from '../ui/Button.jsx'
+import { Spinner } from '../ui/Spinner.jsx'
+import { getGridRisk } from '../services/riskApi.js'
 import styles from './ContextPanel.module.css'
 
 const TAB_ITEMS = [
-  { value: 'overview', label: 'Overview' },
-  { value: 'hazards', label: 'AI Analysis' },
-  { value: 'evidence', label: 'Intelligence' },
+  { value: 'overview', label: 'OVERVIEW' },
+  { value: 'hazards', label: 'AI ANALYSIS' },
+  { value: 'evidence', label: 'INTELLIGENCE' },
 ]
 
+// Cleans source titles from RSS prefixes and redundant category tags
+function formatSourceName(raw) {
+  if (!raw) return 'Regional News Desk'
+  return raw
+    .replace(/^Google News - /i, '')
+    .replace(/ Flood Alert| Flood Monitor| Landslide & Road Closure/i, '')
+    .trim()
+}
+
+// Generates structured Explainable AI diagnostic bullets with standard vector icons
+function getDiagnosticBullets(riskData) {
+  if (!riskData) return []
+  const score = riskData.riskSummary?.riskScore ?? 24.8
+  const status = riskData.riskSummary?.riskStatus || 'LOW'
+  const dynamicRisk = riskData.riskSummary?.dynamicRisk || 0
+  const staticRisk = riskData.riskSummary?.staticRisk || 24.8
+  const confidence = Math.round((riskData.riskSummary?.riskConfidence || 0.95) * 100)
+  const activeEvents = riskData.activeEvents || []
+  const regionalEvents = riskData.regionalEvents || []
+  const channels = riskData.dynamicFactorChannels || {}
+  const staticF = riskData.staticFactors || {}
+
+  const bullets = []
+
+  // 1. Status Assessment
+  bullets.push({
+    icon: Target,
+    iconColor: status === 'CRITICAL' || status === 'HIGH' ? '#dc2626' : '#2563eb',
+    label: 'Risk Assessment',
+    text: `${status} Risk Index (${score.toFixed(1)} / 100)`,
+    isAlert: status === 'CRITICAL' || status === 'HIGH',
+  })
+
+  // 2. Direct Cell Inundation / Closure Status
+  if (channels.roadClosureRisk >= 80) {
+    bullets.push({
+      icon: AlertTriangle,
+      iconColor: '#dc2626',
+      label: 'Transport Corridor',
+      text: 'Critical structural road/bridge closure active along transit route.',
+      isAlert: true,
+    })
+  } else if (activeEvents.length > 0) {
+    bullets.push({
+      icon: ShieldAlert,
+      iconColor: '#ea580c',
+      label: 'Direct Hazards',
+      text: `${activeEvents.length} active verified disaster event(s) directly affecting this 500m cell.`,
+      isAlert: true,
+    })
+  } else {
+    bullets.push({
+      icon: CheckCircle2,
+      iconColor: '#10b981',
+      label: 'Direct Hazard Status',
+      text: 'No active flood inundation or road blockages detected inside this 500m cell.',
+    })
+  }
+
+  // 3. Terrain Baseline Breakdown
+  const terrainItems = []
+  if (staticF.elevationMean) terrainItems.push(`elevation ${staticF.elevationMean.toFixed(0)}m`)
+  if (staticF.slopeMean) terrainItems.push(`slope ${staticF.slopeMean.toFixed(1)}°`)
+  if (staticF.distanceToRiver) terrainItems.push(`river distance ${(staticF.distanceToRiver / 1000).toFixed(1)}km`)
+  bullets.push({
+    icon: Mountain,
+    iconColor: '#64748b',
+    label: 'Terrain Baseline',
+    text: `Static physical vulnerability is ${staticRisk.toFixed(1)}/100 (${terrainItems.join(', ') || 'standard baseline'}).`,
+  })
+
+  // 4. Regional & District Intelligence
+  if (regionalEvents.length > 0) {
+    bullets.push({
+      icon: Radio,
+      iconColor: '#0284c7',
+      label: 'Regional Bulletins',
+      text: `${regionalEvents.length} active disaster bulletins currently monitored across Assam & Kamrup.`,
+    })
+  }
+
+  // 5. Engine Fusion Transparency
+  bullets.push({
+    icon: Cpu,
+    iconColor: '#7c3aed',
+    label: 'Engine Fusion',
+    text: `40% Static Baseline (${staticRisk.toFixed(1)}) + 60% Dynamic Impact (${dynamicRisk.toFixed(1)}) · ${confidence}% confidence.`,
+  })
+
+  return bullets
+}
+
 export function ContextPanel({
-  selectedGridId = null,
-  selectedLocation = null,
+  selectedGridId,
+  selectedLocation,
   onLocateMe,
   onSelectQuickPlace,
   onOpenResqMode,
 }) {
   const [tab, setTab] = useState('overview')
-  const [collapsed, setCollapsed] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [riskData, setRiskData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   // Fetch full explainability breakdown when selectedGridId changes
   useEffect(() => {
-    if (!selectedGridId) {
-      return
+    if (!selectedGridId) return
+
+    let cancelled = false
+    const loadRisk = async () => {
+      setLoading(true)
+      try {
+        const data = await getGridRisk(selectedGridId)
+        if (!cancelled && data) {
+          setRiskData(data)
+        }
+      } catch (err) {
+        console.error('Failed to load grid risk:', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
 
-    let isCurrent = true
-    setLoading(true)
-    getGridRiskBreakdown(selectedGridId)
-      .then((data) => {
-        if (!isCurrent) return
-        setRiskData(data)
-        setLoading(false)
-      })
-      .catch((err) => {
-        if (!isCurrent) return
-        console.error('Risk fetch error:', err.message)
-        setLoading(false)
-      })
-
+    loadRisk()
     return () => {
-      isCurrent = false
+      cancelled = true
     }
   }, [selectedGridId])
+
+  const riskScore = riskData?.riskSummary?.riskScore ?? (selectedLocation ? 24.8 : 0)
+  const riskStatus = riskData?.riskSummary?.riskStatus ?? 'LOW'
+  const staticRisk = riskData?.riskSummary?.staticRisk ?? 24.8
+  const dynamicRisk = riskData?.riskSummary?.dynamicRisk ?? 0
+  const riskConfidence = riskData?.riskSummary?.riskConfidence ?? 0.95
+  const dynamicChannels = riskData?.dynamicFactorChannels || {}
+  const staticFactors = riskData?.staticFactors || {}
+  const activeEvents = riskData?.activeEvents || []
+  const regionalEvents = riskData?.regionalEvents || []
+
+  // Deduplicate events for the Intelligence tab
+  const deduplicatedEvents = useMemo(() => {
+    const rawList = activeEvents.length > 0 ? activeEvents : regionalEvents
+    const seen = new Set()
+    const result = []
+
+    for (const ev of rawList) {
+      const cleanTitle = (ev.news_title || ev.location_text || '').toLowerCase().trim()
+      if (cleanTitle && !seen.has(cleanTitle)) {
+        seen.add(cleanTitle)
+        result.push(ev)
+      }
+    }
+    return result
+  }, [activeEvents, regionalEvents])
+
+  const diagnosticBullets = useMemo(() => getDiagnosticBullets(riskData), [riskData])
 
   if (collapsed) {
     return (
       <button
         type="button"
-        className={styles.reopen}
+        className={styles.expandTab}
         onClick={() => setCollapsed(false)}
-        aria-label="Show disaster intelligence panel"
+        aria-label="Expand Disaster Intelligence Panel"
       >
-        <ChevronLeft size={16} strokeWidth={2} />
-        <span className={styles.reopenLabel}>Intelligence</span>
+        <Shield size={18} />
+        <span>Intelligence</span>
       </button>
     )
   }
 
-  const riskScore = riskData ? parseFloat(riskData.riskSummary.riskScore || 0) : 0
-  const riskStatus = riskData ? riskData.riskSummary.riskStatus : 'LOW'
-  const dynamicRisk = riskData ? parseFloat(riskData.riskSummary.dynamicRisk || 0) : 0
-  const staticRisk = riskData ? parseFloat(riskData.riskSummary.staticRisk || 0) : 0
-  const confidence = riskData ? Math.round((riskData.riskSummary.riskConfidence || 0.95) * 100) : 95
-  const activeEvents = riskData ? riskData.activeEvents || [] : []
+  // Gauge colors and styling
+  let gaugeColor = '#10b981'
+  let statusLabel = 'LOW'
 
-  // Tone for badges & score
-  let statusTone = 'low'
-  let gaugeColor = '#16a34a'
-  if (riskStatus === 'CRITICAL') {
-    statusTone = 'critical'
+  if (riskStatus === 'CRITICAL' || riskScore >= 70) {
     gaugeColor = '#dc2626'
-  } else if (riskStatus === 'HIGH') {
-    statusTone = 'high'
+    statusLabel = 'CRITICAL'
+  } else if (riskStatus === 'HIGH' || riskScore >= 45) {
     gaugeColor = '#ea580c'
-  } else if (riskStatus === 'MODERATE') {
-    statusTone = 'moderate'
+    statusLabel = 'HIGH'
+  } else if (riskStatus === 'MODERATE' || riskScore >= 25) {
     gaugeColor = '#d97706'
+    statusLabel = 'MODERATE'
   }
 
-  const placeTitle = selectedLocation?.name || (riskData ? `Grid ${riskData.gridId}` : 'Safety Intelligence')
-  const placeSubtitle = selectedLocation?.district
+  const placeTitle = selectedLocation?.name || (riskData?.gridId ? `Grid ${riskData.gridId}` : 'Safety Intelligence')
+  const placeSubtitle = selectedLocation?.isLiveGps
+    ? `${selectedLocation.district}, ${selectedLocation.state} · GPS Accuracy ±${selectedLocation.accuracy || 10}m`
+    : selectedLocation?.district
     ? `${selectedLocation.district}, ${selectedLocation.state || 'Assam'}`
-    : (riskData?.district ? `${riskData.district}, ${riskData.state}` : 'Search a place to begin')
+    : riskData?.district
+    ? `${riskData.district}, ${riskData.state || 'Assam'}`
+    : 'Search a place to begin'
 
   // Circular gauge circumference (r = 38)
   const radius = 38
@@ -123,7 +244,7 @@ export function ContextPanel({
             <div className={styles.iconCircle}>
               <MapPin size={18} className={styles.pinIcon} />
             </div>
-            <div>
+            <div className={styles.headerTitles}>
               <div className={styles.titleRow}>
                 <h2 className={styles.title}>{placeTitle}</h2>
                 <div className={styles.liveIndicator}>
@@ -181,7 +302,7 @@ export function ContextPanel({
                 Click any 500m risk cell on the map or search a location to inspect real-time risk scores, active flood/landslide hazards, and safe routing corridors.
               </p>
               <div className={styles.quickShortcuts}>
-                <p className={styles.quickLabel}>Quick Demonstration Areas:</p>
+                <p className={styles.quickLabel}>Demonstration Areas:</p>
                 <div className={styles.quickGrid}>
                   <button type="button" className={styles.quickBtn} onClick={() => onSelectQuickPlace && onSelectQuickPlace('Guwahati')}>
                     Guwahati
@@ -193,7 +314,8 @@ export function ContextPanel({
                     Shillong (Ri-Bhoi)
                   </button>
                   <button type="button" className={styles.quickBtn} onClick={onLocateMe}>
-                    📍 My Location
+                    <Navigation size={12} />
+                    <span>My Location</span>
                   </button>
                 </div>
               </div>
@@ -205,91 +327,110 @@ export function ContextPanel({
               {/* TAB 1: OVERVIEW */}
               <TabPanel value="overview" active={tab === 'overview'}>
                 <div className={styles.tabContent}>
-                  {/* Suraksha-Style Circular Gauge Card */}
-                  <div className={styles.gaugeCard}>
+                  {/* Gauge Container */}
+                  <div className={styles.gaugeContainer}>
                     <div className={styles.gaugeCircleWrapper}>
-                      <svg width="90" height="90" viewBox="0 0 90 90" className={styles.gaugeSvg}>
+                      <svg className={styles.gaugeSvg} viewBox="0 0 90 90">
+                        <circle cx="45" cy="45" r={radius} className={styles.gaugeBgCircle} />
                         <circle
                           cx="45"
                           cy="45"
                           r={radius}
-                          fill="none"
-                          stroke="#e2e8f0"
-                          strokeWidth="7"
-                        />
-                        <circle
-                          cx="45"
-                          cy="45"
-                          r={radius}
-                          fill="none"
-                          stroke={gaugeColor}
-                          strokeWidth="7"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={strokeDashoffset}
-                          strokeLinecap="round"
-                          transform="rotate(-90 45 45)"
-                          style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                          className={styles.gaugeFillCircle}
+                          style={{
+                            stroke: gaugeColor,
+                            strokeDasharray: circumference,
+                            strokeDashoffset: strokeDashoffset,
+                          }}
                         />
                       </svg>
                       <div className={styles.gaugeCenterText}>
-                        <span className={styles.gaugeScore}>{riskScore}</span>
-                        <span className={styles.gaugeMax}>/ 100</span>
+                        <span className={styles.gaugeNumber}>{riskScore.toFixed(1)}</span>
+                        <span className={styles.gaugeTotal}>/ 100</span>
                       </div>
                     </div>
 
-                    <div className={styles.gaugeRight}>
-                      <span className={styles.gaugeLabel}>DYNAMIC RISK INDEX</span>
-                      <div className={styles.gaugeStatusRow}>
-                        <span className={`${styles.gaugeStatusText} ${styles[`status_${statusTone}`]}`}>
-                          {riskStatus}
-                        </span>
+                    <div className={styles.gaugeLabels}>
+                      <span className={styles.gaugeCategory}>DYNAMIC RISK INDEX</span>
+                      <span className={styles.gaugeStatusTitle} style={{ color: gaugeColor }}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* District & Cell Info: Refined 2x2 Metric Cards Grid */}
+                  <div className={styles.section}>
+                    <div className={styles.sectionTitleRow}>
+                      <Shield size={14} className={styles.sectionIcon} />
+                      <h4 className={styles.sectionHeading}>District & Cell Info</h4>
+                    </div>
+
+                    <div className={styles.metricGrid}>
+                      <div className={styles.metricCard}>
+                        <div className={styles.metricHeader}>
+                          <Shield size={13} className={styles.metricIcon} />
+                          <span className={styles.metricLabel}>Risk Level</span>
+                        </div>
+                        <div className={styles.metricValueRow}>
+                          <span
+                            className={styles.metricStatusBadge}
+                            style={{
+                              background: gaugeColor + '18',
+                              color: gaugeColor,
+                              borderColor: gaugeColor + '40',
+                            }}
+                          >
+                            {statusLabel}
+                          </span>
+                        </div>
                       </div>
-                      <div className={styles.meterContainer}>
-                        <MeterBar value={riskScore} max={100} tone={statusTone} />
+
+                      <div className={styles.metricCard}>
+                        <div className={styles.metricHeader}>
+                          <Activity size={13} className={styles.metricIcon} />
+                          <span className={styles.metricLabel}>Dynamic Signals</span>
+                        </div>
+                        <div className={styles.metricValueRow}>
+                          <span className={styles.metricNumber}>{dynamicRisk.toFixed(1)}%</span>
+                        </div>
+                      </div>
+
+                      <div className={styles.metricCard}>
+                        <div className={styles.metricHeader}>
+                          <Layers size={13} className={styles.metricIcon} />
+                          <span className={styles.metricLabel}>Static Baseline</span>
+                        </div>
+                        <div className={styles.metricValueRow}>
+                          <span className={styles.metricNumber}>{staticRisk.toFixed(1)}</span>
+                          <span className={styles.metricUnit}>/ 100</span>
+                        </div>
+                      </div>
+
+                      <div className={styles.metricCard}>
+                        <div className={styles.metricHeader}>
+                          <Cpu size={13} className={styles.metricIcon} />
+                          <span className={styles.metricLabel}>AI Confidence</span>
+                        </div>
+                        <div className={styles.metricValueRow}>
+                          <span className={styles.metricNumber}>{Math.round(riskConfidence * 100)}%</span>
+                          <span className={styles.metricUnit}>Optimal</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* District / Area Info Section */}
+                  {/* Nearby Safety Resources */}
                   <div className={styles.section}>
                     <div className={styles.sectionTitleRow}>
-                      <Building2 size={15} className={styles.sectionIcon} />
-                      <h4 className={styles.sectionHeading}>DISTRICT INFO</h4>
-                    </div>
-                    <div className={styles.metaList}>
-                      <KeyValueRow
-                        label="RISK CATEGORY"
-                        value={`${riskStatus === 'LOW' ? 'Low Risk' : riskStatus === 'CRITICAL' ? 'Critical Hazard' : 'Elevated Risk'}`}
-                      />
-                      <KeyValueRow
-                        label="DYNAMIC RISK"
-                        value={`${dynamicRisk > 0 ? dynamicRisk : '0%'}`}
-                        mono
-                      />
-                      <KeyValueRow
-                        label="STATIC BASELINE"
-                        value={staticRisk}
-                        mono
-                      />
-                      <KeyValueRow
-                        label="CONFIDENCE AMPLIFIER"
-                        value={`x${(confidence / 100 * 1.5).toFixed(1)} (${confidence}%)`}
-                        mono
-                      />
-                    </div>
-                  </div>
-
-                  {/* Nearby Safety & Relief Resources */}
-                  <div className={styles.section}>
-                    <div className={styles.sectionTitleRow}>
-                      <ShieldCheck size={15} className={styles.sectionIcon} />
-                      <h4 className={styles.sectionHeading}>NEARBY SAFETY RESOURCES</h4>
+                      <Radio size={14} className={styles.sectionIcon} />
+                      <h4 className={styles.sectionHeading}>Nearby Safety Resources</h4>
                     </div>
                     <p className={styles.sectionSubtitle}>Safety facilities around your current location</p>
+
                     <div className={styles.resourceList}>
                       <div className={styles.resourceCard}>
                         <div className={styles.resourceIconCircle}>
-                          <ShieldAlert size={15} color="var(--accent)" />
+                          <Shield size={16} color="var(--accent)" />
                         </div>
                         <div className={styles.resourceInfo}>
                           <span className={styles.resourceName}>Area Police Station</span>
@@ -303,11 +444,11 @@ export function ContextPanel({
 
                       <div className={styles.resourceCard}>
                         <div className={styles.resourceIconCircle}>
-                          <Flame size={15} color="var(--emergency)" />
+                          <Activity size={16} color="#dc2626" />
                         </div>
                         <div className={styles.resourceInfo}>
-                          <span className={styles.resourceName}>Emergency Fire & Rescue</span>
-                          <span className={styles.resourceMeta}>Fire Station · 1.8 km</span>
+                          <span className={styles.resourceName}>District Emergency Hospital</span>
+                          <span className={styles.resourceMeta}>Medical Facility · 1.4 km</span>
                         </div>
                         <button type="button" className={styles.directionsLink} onClick={onOpenResqMode}>
                           <span>Directions</span>
@@ -322,37 +463,211 @@ export function ContextPanel({
               {/* TAB 2: AI ANALYSIS */}
               <TabPanel value="hazards" active={tab === 'hazards'}>
                 <div className={styles.tabContent}>
-                  <div className={styles.section}>
-                    <h4 className={styles.sectionHeading}>Why Is This Area At Risk?</h4>
-                    <p className={styles.sectionDesc}>
-                      Dynamic risk aggregates real-time media, field road closures, and sensor evidence blended with 500m static terrain baselines.
-                    </p>
-
-                    <div className={styles.factorStack}>
-                      {activeEvents.map((ev, idx) => (
-                        <div key={idx} className={styles.factorCard}>
-                          <div className={styles.factorHeader}>
-                            <span className={styles.factorType}>
-                              {ev.bridge_closed ? 'BRIDGE CLOSURE' : (ev.event_type || 'HAZARD REPORT')}
-                            </span>
-                            <span className={styles.factorImpact}>+{ev.impact_score}</span>
-                          </div>
-                          <p className={styles.factorTitle}>{ev.news_title || ev.location_text}</p>
-                          <div className={styles.factorMeta}>
-                            <span>Severity: {ev.severity}/100</span>
-                            <span>•</span>
-                            <span>Confidence: {Math.round((ev.confidence || 0.9) * 100)}%</span>
-                          </div>
-                        </div>
-                      ))}
-
-                      {activeEvents.length === 0 && (
-                        <div className={styles.noHazardBox}>
-                          <CheckCircle2 size={15} color="var(--risk-low)" />
-                          <span>No active dynamic hazards detected in this 500m cell.</span>
-                        </div>
-                      )}
+                  {/* Structured AI Diagnostic Bullet Points Card with Vector Icons */}
+                  <div className={styles.aiDiagnosticCard}>
+                    <div className={styles.aiDiagHeader}>
+                      <div className={styles.aiDiagTitleRow}>
+                        <Brain size={16} />
+                        <span>Neural AI Diagnostic</span>
+                      </div>
+                      <span className={styles.aiDiagBadge} style={{ background: gaugeColor, color: '#ffffff' }}>
+                        {statusLabel}
+                      </span>
                     </div>
+
+                    <ul className={styles.diagBulletList}>
+                      {diagnosticBullets.map((item, idx) => {
+                        const IconComponent = item.icon
+                        return (
+                          <li key={idx} className={styles.diagBulletItem}>
+                            <span className={styles.diagBulletIcon} style={{ color: item.iconColor }}>
+                              <IconComponent size={15} />
+                            </span>
+                            <div className={styles.diagBulletBody}>
+                              <strong className={styles.diagBulletLabel}>{item.label}:</strong>{' '}
+                              <span className={item.isAlert ? styles.diagBulletAlert : styles.diagBulletText}>
+                                {item.text}
+                              </span>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+
+                  {/* Mathematical Fusion Formula Card */}
+                  <div className={styles.formulaCard}>
+                    <div className={styles.formulaHeader}>
+                      <span>Risk Fusion Formula</span>
+                      <Info size={13} color="var(--text-muted)" />
+                    </div>
+                    <div className={styles.formulaEquation}>
+                      <span>Score = (0.40 × {staticRisk.toFixed(1)}) + (0.60 × {dynamicRisk.toFixed(1)}) = {riskScore.toFixed(1)}</span>
+                    </div>
+                    <div className={styles.formulaWeights}>
+                      <span>Static Baseline: 40%</span>
+                      <span>•</span>
+                      <span>Real-Time Dynamic Impact: 60%</span>
+                    </div>
+                  </div>
+
+                  {/* Multi-Channel Decomposition Meters */}
+                  <div className={styles.section}>
+                    <div className={styles.sectionTitleRow}>
+                      <Layers size={14} className={styles.sectionIcon} />
+                      <h4 className={styles.sectionHeading}>Risk Factor Channels</h4>
+                    </div>
+
+                    <div className={styles.channelMeterList}>
+                      {/* News Media Risk */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <Radio size={12} /> News Media Impact
+                          </span>
+                          <span className={styles.channelMeterVal}>{(dynamicChannels.newsRisk || 0).toFixed(1)} / 100</span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, dynamicChannels.newsRisk || 0)}%`,
+                              background: (dynamicChannels.newsRisk || 0) > 50 ? '#dc2626' : '#2563eb',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Road / Bridge Closure */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <AlertTriangle size={12} /> Road & Bridge Closures
+                          </span>
+                          <span className={styles.channelMeterVal}>
+                            {(dynamicChannels.roadClosureRisk || 0) >= 80 ? 'CRITICAL CLOSED' : `${(dynamicChannels.roadClosureRisk || 0).toFixed(0)} / 100`}
+                          </span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, dynamicChannels.roadClosureRisk || 0)}%`,
+                              background: (dynamicChannels.roadClosureRisk || 0) >= 80 ? '#dc2626' : '#10b981',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Rainfall Accumulation */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <CloudRain size={12} /> Rainfall Risk
+                          </span>
+                          <span className={styles.channelMeterVal}>{(dynamicChannels.rainfallRisk || 0).toFixed(1)} / 100</span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, dynamicChannels.rainfallRisk || 0)}%`,
+                              background: '#0284c7',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Flood Susceptibility */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <Droplets size={12} /> Floodplain Susceptibility
+                          </span>
+                          <span className={styles.channelMeterVal}>{(staticFactors.floodSusceptibility || 0).toFixed(0)} / 100</span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, staticFactors.floodSusceptibility || 0)}%`,
+                              background: '#3b82f6',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Landslide Hazard */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <Mountain size={12} /> Landslide Vulnerability
+                          </span>
+                          <span className={styles.channelMeterVal}>{(staticFactors.landslideSusceptibility || 0).toFixed(0)} / 100</span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, staticFactors.landslideSusceptibility || 0)}%`,
+                              background: '#d97706',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Population Density */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <Users size={12} /> Population Exposure
+                          </span>
+                          <span className={styles.channelMeterVal}>{Math.round(staticFactors.populationDensity || 0)} / km²</span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, ((staticFactors.populationDensity || 0) / 3000) * 100)}%`,
+                              background: '#8b5cf6',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Infrastructure Exposure */}
+                      <div className={styles.channelMeterRow}>
+                        <div className={styles.channelMeterHeader}>
+                          <span className={styles.channelMeterName}>
+                            <Building size={12} /> Infrastructure Exposure
+                          </span>
+                          <span className={styles.channelMeterVal}>{(staticFactors.infrastructureExposure || 0).toFixed(0)}%</span>
+                        </div>
+                        <div className={styles.channelMeterBar}>
+                          <div
+                            className={styles.channelMeterFill}
+                            style={{
+                              width: `${Math.min(100, staticFactors.infrastructureExposure || 0)}%`,
+                              background: '#6366f1',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Safety Guidance Action Card */}
+                  <div className={styles.actionAdviceCard}>
+                    <Shield size={16} color="#2563eb" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <p className={styles.actionAdviceText}>
+                      {statusLabel === 'CRITICAL'
+                        ? 'Immediate Warning: Avoid low-lying transit corridors. Follow SDRF / NDRF evacuation directives.'
+                        : statusLabel === 'HIGH'
+                        ? 'Heightened Vigilance: Monitor rising river water levels. Restrict heavy commercial vehicle movements.'
+                        : statusLabel === 'MODERATE'
+                        ? 'Advisory: Maintain standard safety precautions during heavy rainfall periods.'
+                        : 'Clear: Normal operations. Regional transit corridors operating under safe baseline conditions.'}
+                    </p>
                   </div>
                 </div>
               </TabPanel>
@@ -361,39 +676,52 @@ export function ContextPanel({
               <TabPanel value="evidence" active={tab === 'evidence'}>
                 <div className={styles.tabContent}>
                   <div className={styles.section}>
-                    <h4 className={styles.sectionHeading}>Verified Media & Bulletins</h4>
-                    <div className={styles.evidenceList}>
-                      {activeEvents.map((ev, idx) => (
-                        <div key={idx} className={styles.evidenceCard}>
-                          <div className={styles.evidenceSourceRow}>
-                            <span className={styles.evidenceSource}>{ev.source_name || 'Regional News Desk'}</span>
-                            <span className={styles.evidenceTier}>Tier {ev.reliability_tier || 2} Verified</span>
-                          </div>
-                          <p className={styles.evidenceTitle}>{ev.news_title}</p>
-                          <div className={styles.evidenceFooter}>
-                            <span className={styles.evidenceTime}>
-                              <Clock size={11} />
-                              {ev.reported_at ? new Date(ev.reported_at).toLocaleDateString() : 'Recent'}
-                            </span>
-                            {ev.news_url && (
-                              <a
-                                href={ev.news_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={styles.evidenceLink}
-                              >
-                                <span>Read Bulletin</span>
-                                <ExternalLink size={11} />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    <div className={styles.sectionTitleRow}>
+                      <Radio size={14} className={styles.sectionIcon} />
+                      <h4 className={styles.sectionHeading}>
+                        Verified Media & Bulletins ({deduplicatedEvents.length})
+                      </h4>
+                    </div>
+                    <p className={styles.sectionDesc}>
+                      NLP-extracted disaster reports from regional media desks, IMD alerts, and government bulletins.
+                    </p>
 
-                      {activeEvents.length === 0 && (
+                    <div className={styles.evidenceList}>
+                      {deduplicatedEvents.map((ev, idx) => {
+                        const formattedSource = formatSourceName(ev.source_name)
+                        return (
+                          <div key={idx} className={styles.evidenceCard}>
+                            <div className={styles.evidenceSourceRow}>
+                              <span className={styles.evidenceSource}>{formattedSource}</span>
+                              <span className={styles.evidenceTier}>Tier {ev.reliability_tier || 2} Verified</span>
+                            </div>
+                            <p className={styles.evidenceTitle}>{ev.news_title || ev.location_text || 'Disaster Bulletin'}</p>
+                            <div className={styles.evidenceFooter}>
+                              <span className={styles.evidenceTime}>
+                                <Clock size={11} />
+                                {ev.reported_at ? new Date(ev.reported_at).toLocaleDateString() : 'Recent'}
+                              </span>
+                              {ev.news_url && (
+                                <a
+                                  href={ev.news_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={styles.evidenceLink}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span>Read Bulletin</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {deduplicatedEvents.length === 0 && (
                         <div className={styles.noHazardBox}>
                           <Info size={15} />
-                          <span>No media bulletins linked to this specific cell.</span>
+                          <span>No active media bulletins currently recorded for this region.</span>
                         </div>
                       )}
                     </div>

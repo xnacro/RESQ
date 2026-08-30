@@ -13,9 +13,10 @@ export function MobileBottomSheet({
 
   if (!riskData && !selectedLocation) return null
 
-  const riskScore = riskData ? parseFloat(riskData.riskSummary.riskScore || 0) : null
-  const riskStatus = riskData ? riskData.riskSummary.riskStatus : 'LOW'
-  const placeTitle = selectedLocation?.name || (riskData ? `Grid ${riskData.gridId}` : 'Selected Area')
+  const hasSummary = Boolean(riskData && riskData.riskSummary)
+  const riskScore = hasSummary && riskData.riskSummary.riskScore != null ? parseFloat(riskData.riskSummary.riskScore) : null
+  const riskStatus = hasSummary && riskData.riskSummary.riskStatus ? riskData.riskSummary.riskStatus : 'LOW'
+  const placeTitle = selectedLocation?.name || (riskData?.gridId ? `Grid ${riskData.gridId}` : 'Selected Area')
   const placeDistrict = selectedLocation?.district || riskData?.district || 'Assam / Meghalaya'
 
   let statusTone = 'neutral'
@@ -23,6 +24,12 @@ export function MobileBottomSheet({
   else if (riskStatus === 'HIGH') statusTone = 'high'
   else if (riskStatus === 'MODERATE') statusTone = 'moderate'
   else if (riskStatus === 'LOW') statusTone = 'low'
+
+  const staticRisk = hasSummary ? riskData.riskSummary.staticRisk : 0
+  const dynamicRisk = hasSummary ? riskData.riskSummary.dynamicRisk : 0
+  const roadClosureRisk = riskData?.dynamicFactorChannels?.roadClosureRisk != null
+    ? parseFloat(riskData.dynamicFactorChannels.roadClosureRisk)
+    : 0
 
   return (
     <div className={`${styles.sheet} ${isExpanded ? styles.sheetExpanded : styles.sheetCollapsed}`}>
@@ -51,26 +58,28 @@ export function MobileBottomSheet({
       {/* Expanded Content */}
       {isExpanded && riskData && (
         <div className={styles.expandedBody}>
-          <div className={styles.meterContainer}>
-            <MeterBar value={riskScore} max={100} tone={statusTone} />
-          </div>
+          {riskScore !== null && (
+            <div className={styles.meterContainer}>
+              <MeterBar value={riskScore} max={100} tone={statusTone} />
+            </div>
+          )}
 
           <div className={styles.splitRow}>
             <div className={styles.splitItem}>
               <span className={styles.splitLabel}>Static Baseline</span>
-              <span className={styles.splitVal}>{riskData.riskSummary.staticRisk}</span>
+              <span className={styles.splitVal}>{staticRisk}</span>
             </div>
             <div className={styles.splitItem}>
               <span className={styles.splitLabel}>Dynamic Risk</span>
-              <span className={styles.splitVal}>{riskData.riskSummary.dynamicRisk}</span>
+              <span className={styles.splitVal}>{dynamicRisk}</span>
             </div>
           </div>
 
           {/* Active Hazards */}
-          {parseFloat(riskData.dynamicFactorChannels.roadClosureRisk || 0) > 0 && (
+          {roadClosureRisk > 0 && (
             <div className={styles.hazardAlert}>
               <ShieldAlert size={15} color="var(--emergency)" />
-              <span>Critical Road / Bridge Blockage Detected (+{riskData.dynamicFactorChannels.roadClosureRisk})</span>
+              <span>Critical Road / Bridge Blockage Detected (+{roadClosureRisk})</span>
             </div>
           )}
 
