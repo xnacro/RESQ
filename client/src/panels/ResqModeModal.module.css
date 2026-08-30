@@ -1,0 +1,289 @@
+/* ResqModeModal CSS Module */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-overlay);
+  padding: var(--sp-4);
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: var(--r-tile);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalPop var(--dur) var(--ease-out);
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+
+.headerTitleRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.badgePulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  color: var(--emergency);
+  letter-spacing: var(--tracking-label);
+}
+
+.pulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--emergency);
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.8); }
+}
+
+.title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  margin: 0;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.closeBtn:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.content {
+  flex: 1;
+  padding: var(--sp-6);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  background: var(--surface);
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sectionTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  margin: 0;
+}
+
+.routeInputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.vehicleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+.vehicleCard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--dur) var(--ease);
+}
+
+.vehicleCard:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+.vehicleCardActive {
+  border-color: var(--accent) !important;
+  background: var(--accent-subtle) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.vehicleIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.vehicleCardActive .vehicleIcon {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.vehicleInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vehicleLabel {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.vehicleDesc {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+.cargoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+.cargoCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--sp-3);
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.cargoCard:hover {
+  border-color: var(--accent-border);
+}
+
+.cargoCardActive {
+  border-color: var(--accent) !important;
+  background: var(--accent-subtle) !important;
+}
+
+.cargoLabel {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.routePreview {
+  padding: var(--sp-3) var(--sp-4);
+  background: #ffffff;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.previewHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.previewTitle {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.previewText {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+
+.statusBands {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: 4px;
+}
+
+.statusPillSafe, .statusPillCaution, .statusPillAvoid, .statusPillBlocked {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+
+.statusPillSafe { background: var(--risk-low-subtle); color: var(--risk-low); }
+.statusPillCaution { background: var(--risk-moderate-subtle); color: var(--risk-moderate); }
+.statusPillAvoid { background: var(--risk-high-subtle); color: var(--risk-high); }
+.statusPillBlocked { background: var(--risk-critical-subtle); color: var(--emergency-text); }
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+
+@media (max-width: 600px) {
+  .vehicleGrid, .cargoGrid {
+    grid-template-columns: 1fr;
+  }
+}
