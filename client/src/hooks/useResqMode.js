@@ -1,5 +1,6 @@
-// Hook for RESQ Mode Session Lifecycle, Live GPS Tracking, 500m Grid, Risk, and Safety Timer
+// Hook for RESQ Mode Session Lifecycle, Live GPS Tracking, 500m Grid, Risk, Safety Timer, and Realtime Sockets
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { io } from 'socket.io-client'
 import {
   startResqSession,
   stopResqSession,
@@ -8,6 +9,8 @@ import {
   updateResqSessionLocation,
   checkInResqSession,
   updateResqSessionTimer,
+  dispatchResqSessionSos,
+  cancelResqSessionSos,
 } from '../services/resqApi.js'
 import { useAuth } from '../app/authContext.jsx'
 
@@ -52,6 +55,7 @@ export function useResqMode() {
   const watchIdRef = useRef(null)
   const lastServerUpdateRef = useRef(0)
   const lastRecordedLocationRef = useRef(null)
+  const socketRef = useRef(null)
 
   // 1. Recover Active Session on Mount
   useEffect(() => {
@@ -108,9 +112,71 @@ export function useResqMode() {
     }
   }, [isAuthenticated])
 
-  // 2. Continuous 1-Second Timer Countdown Loop
+  const sessionId = session?.session_id
+
+  // 2. Realtime WebSocket Room Connection
   useEffect(() => {
-    if (!isActive || !session || !session.timer_expires_at) {
+    if (!isActive || !sessionId) {
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
+      return
+    }
+
+    const socket = io(window.location.origin, {
+      transports: ['websocket', 'polling'],
+    })
+
+    socket.on('connect', () => {
+      socket.emit('join:session', { sessionId })
+    })
+
+    // Listen for live session updates
+    socket.on('resq:session:update', (payload) => {
+      if (payload.session) {
+        setSession((prev) => ({ ...prev, ...payload.session }))
+      }
+      if (payload.grid) {
+        setGridData((prev) => ({ ...prev, ...payload.grid }))
+      }
+      if (payload.risk) {
+        setRiskData((prev) => ({ ...prev, ...payload.risk }))
+      }
+      if (payload.activeEvents) {
+        setActiveEvents(payload.activeEvents)
+      }
+    })
+
+    // Listen for risk escalation alerts
+    socket.on('resq:risk:alert', (alert) => {
+      setRiskAlert({
+        title: alert.title || 'Risk Escalated',
+        reason: alert.reason || 'Hazard detected in 500m grid',
+        status: alert.status || 'CRITICAL',
+        score: alert.severity || 80,
+      })
+    })
+
+    // Listen for SOS emergency status
+    socket.on('resq:sos:alert', (sosPayload) => {
+      if (sosPayload.session) {
+        setSession((prev) => ({ ...prev, ...sosPayload.session }))
+      }
+    })
+
+    socketRef.current = socket
+
+    return () => {
+      socket.emit('leave:session', { sessionId })
+      socket.disconnect()
+      socketRef.current = null
+    }
+  }, [isActive, sessionId])
+
+  // 3. Continuous 1-Second Timer Countdown Loop
+  useEffect(() => {
+    if (!isActive || !sessionId || !session?.timer_expires_at) {
       setTimeRemainingMs(0)
       return
     }
@@ -125,12 +191,12 @@ export function useResqMode() {
     const interval = setInterval(updateTimer, 1000)
 
     return () => clearInterval(interval)
-  }, [isActive, session?.timer_expires_at])
+  }, [isActive, sessionId, session?.timer_expires_at])
 
-  // 3. Throttled Server Location Sync Function
+  // 4. Throttled Server Location Sync Function
   const syncLocationWithServer = useCallback(
-    async (coords, sessionId) => {
-      if (!sessionId || !coords) return
+    async (coords, sId) => {
+      if (!sId || !coords) return
 
       const now = Date.now()
       const timeSinceLast = now - lastServerUpdateRef.current
@@ -154,7 +220,7 @@ export function useResqMode() {
 
       try {
         const updateRes = await updateResqSessionLocation({
-          sessionId,
+          sessionId: sId,
           lat: coords.latitude,
           lon: coords.longitude,
           accuracy: coords.accuracy || 10,
@@ -186,9 +252,7 @@ export function useResqMode() {
     []
   )
 
-  const sessionId = session?.session_id
-
-  // 4. Start Browser GPS watchPosition when Session is Active
+  // 5. Start Browser GPS watchPosition when Session is Active
   useEffect(() => {
     if (!isActive || !sessionId) {
       if (watchIdRef.current !== null) {
@@ -256,7 +320,7 @@ export function useResqMode() {
     }
   }, [isActive, sessionId, syncLocationWithServer])
 
-  // 5. User Safety Check-in Action
+  // 6. User Safety Check-in Action
   const checkIn = useCallback(async () => {
     if (!sessionId) return
 
@@ -277,7 +341,7 @@ export function useResqMode() {
     }
   }, [sessionId])
 
-  // 6. Extend Safety Timer Action
+  // 7. Extend Safety Timer Action
   const extendTimer = useCallback(
     async (additionalMinutes) => {
       if (!sessionId || !session) return
@@ -302,7 +366,7 @@ export function useResqMode() {
     [sessionId, session]
   )
 
-  // 7. Trigger Emergency SOS Action
+  // 8. Trigger Emergency SOS Action
   const triggerSos = useCallback(
     async ({ emergencyType = 'GENERAL_DISTRESS', notes = '' } = {}) => {
       if (!sessionId) return
@@ -330,7 +394,7 @@ export function useResqMode() {
     [sessionId]
   )
 
-  // 8. Cancel / Resolve Emergency SOS Action
+  // 9. Cancel / Resolve Emergency SOS Action
   const cancelSos = useCallback(
     async (reason = 'Resolved') => {
       if (!sessionId) return
@@ -357,7 +421,7 @@ export function useResqMode() {
     [sessionId]
   )
 
-  // 9. Start a new RESQ Safety Session
+  // 10. Start a new RESQ Safety Session
   const startSession = useCallback(
     async ({ safetyTimerMinutes = 30, trustedContacts = [] } = {}) => {
       setIsLoading(true)
@@ -395,7 +459,7 @@ export function useResqMode() {
     []
   )
 
-  // 10. Stop active RESQ Safety Session
+  // 11. Stop active RESQ Safety Session
   const stopSession = useCallback(async () => {
     if (!sessionId) return
 
@@ -407,6 +471,10 @@ export function useResqMode() {
       if (watchIdRef.current !== null) {
         navigator.geolocation?.clearWatch(watchIdRef.current)
         watchIdRef.current = null
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+        socketRef.current = null
       }
       localStorage.removeItem(STORAGE_KEY)
       setSession(null)

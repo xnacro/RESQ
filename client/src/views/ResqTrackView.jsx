@@ -1,6 +1,7 @@
-// RESQ Mode Public/Trusted Live Safety Tracking Viewer
+// RESQ Mode Public/Trusted Live Safety Tracking Viewer with Realtime Sockets
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { io } from 'socket.io-client'
 import {
   Shield,
   Clock,
@@ -25,6 +26,7 @@ export function ResqTrackView() {
   const [lastUpdatedSec, setLastUpdatedSec] = useState(0)
 
   const pollIntervalRef = useRef(null)
+  const socketRef = useRef(null)
 
   // 1. Initial Heartbeat & Continuous Telemetry Polling
   useEffect(() => {
@@ -61,9 +63,45 @@ export function ResqTrackView() {
       setLastUpdatedSec((prev) => prev + 1)
     }, 1000)
 
+    // Connect to Socket.IO room for instant live push updates
+    const socket = io(window.location.origin, {
+      transports: ['websocket', 'polling'],
+    })
+
+    socket.on('connect', () => {
+      socket.emit('join:session', { sessionId })
+    })
+
+    socket.on('resq:session:update', (payload) => {
+      if (payload.session) {
+        setTelemetry((prev) => (prev ? { ...prev, ...payload.session } : payload.session))
+        setLastUpdatedSec(0)
+      }
+      if (payload.grid?.geometry) {
+        setGeometry(payload.grid.geometry)
+      }
+      if (payload.activeEvents) {
+        setActiveEvents(payload.activeEvents)
+      }
+    })
+
+    socket.on('resq:sos:alert', (sosPayload) => {
+      if (sosPayload.session) {
+        setTelemetry((prev) => (prev ? { ...prev, ...sosPayload.session, isEmergency: true } : sosPayload.session))
+        setLastUpdatedSec(0)
+      }
+    })
+
+    socketRef.current = socket
+
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
       clearInterval(tickInterval)
+      if (socketRef.current) {
+        socketRef.current.emit('leave:session', { sessionId })
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
     }
   }, [sessionId])
 

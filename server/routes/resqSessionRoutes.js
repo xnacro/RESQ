@@ -1,4 +1,4 @@
-// RESQ Mode Session Lifecycle, Live Risk Monitoring, Safety Timer, and Emergency SOS API Routes
+// RESQ Mode Session Lifecycle, Live Risk Monitoring, Safety Timer, and Realtime WebSocket Broadcasts
 import express from "express";
 import crypto from "crypto";
 import pool from "../config/db.js";
@@ -11,6 +11,11 @@ import {
   endResqSession,
 } from "../models/resqSessionModel.js";
 import { getDynamicRiskBreakdown } from "../services/risk/dynamicRiskService.js";
+import {
+  broadcastSessionUpdate,
+  broadcastRiskAlert,
+  broadcastSosAlert,
+} from "../services/socketService.js";
 
 const router = express.Router();
 
@@ -34,6 +39,7 @@ router.post("/start", authenticate, async (req, res) => {
     if (existingActive) {
       // Auto-end the existing session and start a new clean session
       await endResqSession(existingActive.session_id, userId);
+      broadcastSessionUpdate(existingActive.session_id, { type: "SESSION_ENDED" });
     }
 
     const session = await createResqSession({
@@ -176,6 +182,34 @@ router.post("/location", authenticate, async (req, res) => {
 
     const updatedSession = await updateResqSession(sessionId, sessionUpdates);
 
+    // Broadcast Realtime Telemetry Update via Socket.IO
+    broadcastSessionUpdate(sessionId, {
+      type: "LOCATION_UPDATE",
+      session: updatedSession,
+      grid: {
+        gridId,
+        district: districtName,
+        state: stateName,
+        geometry: gridCell?.geometry || null,
+      },
+      risk: {
+        riskScore,
+        riskStatus,
+        staticRisk,
+        dynamicRisk,
+      },
+      activeEvents,
+    });
+
+    if (isEscalation) {
+      broadcastRiskAlert(sessionId, {
+        title: `Risk Escalated to ${riskStatus}`,
+        reason: activeEvents[0]?.news_title || "Elevated hazard corridor detected",
+        severity: riskScore,
+        gridId,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       sessionId,
@@ -261,6 +295,13 @@ router.post("/checkin", authenticate, async (req, res) => {
 
     const updatedSession = await updateResqSession(sessionId, updates);
 
+    // Broadcast Realtime Checkin Update
+    broadcastSessionUpdate(sessionId, {
+      type: "CHECKIN",
+      session: updatedSession,
+      timer_expires_at: newExpiresAt.toISOString(),
+    });
+
     return res.status(200).json({
       success: true,
       message: "Safety check-in verified successfully",
@@ -323,6 +364,13 @@ router.post("/timer/update", authenticate, async (req, res) => {
     };
 
     const updatedSession = await updateResqSession(sessionId, updates);
+
+    // Broadcast Realtime Timer Extension
+    broadcastSessionUpdate(sessionId, {
+      type: "TIMER_UPDATE",
+      session: updatedSession,
+      timer_expires_at: newExpiresAt.toISOString(),
+    });
 
     return res.status(200).json({
       success: true,
@@ -395,6 +443,13 @@ router.post("/sos", authenticate, async (req, res) => {
 
     const updatedSession = await updateResqSession(sessionId, updates);
 
+    // Broadcast Realtime SOS Alert to all listeners
+    broadcastSosAlert(sessionId, {
+      type: "SOS_TRIGGERED",
+      alertId: emergencyAlertId,
+      session: updatedSession,
+    });
+
     return res.status(200).json({
       success: true,
       message: "EMERGENCY SOS DISPATCHED SUCCESSFULLY",
@@ -452,6 +507,12 @@ router.post("/sos/cancel", authenticate, async (req, res) => {
     };
 
     const updatedSession = await updateResqSession(sessionId, updates);
+
+    // Broadcast Realtime SOS Cancellation
+    broadcastSosAlert(sessionId, {
+      type: "SOS_CANCELLED",
+      session: updatedSession,
+    });
 
     return res.status(200).json({
       success: true,
@@ -602,6 +663,12 @@ router.post("/stop", authenticate, async (req, res) => {
     }
 
     const endedSession = await endResqSession(sessionId, session.user_id);
+
+    // Broadcast Realtime Session Ended Update
+    broadcastSessionUpdate(sessionId, {
+      type: "SESSION_ENDED",
+      session: endedSession,
+    });
 
     return res.status(200).json({
       success: true,
