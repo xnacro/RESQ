@@ -7,120 +7,96 @@ import { ContextPanel } from '../panels/ContextPanel.jsx'
 import { MobileBottomSheet } from '../panels/MobileBottomSheet.jsx'
 import { ResqModeModal } from '../panels/ResqModeModal.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
-import { getGridByPoint, searchGeocode, getGridRiskBreakdown } from '../services/api.js'
+import {
+  getDeviceCoordinates,
+  searchLocations,
+  GEOLOCATION_STATE,
+} from '../services/locationApi.js'
+import { getCurrentGridRisk, getGridRisk } from '../services/riskApi.js'
 import styles from './MapView.module.css'
 
 export default function MapView() {
   const [mode, setMode] = useState(MAP_MODES.NORMAL)
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [selectedGridId, setSelectedGridId] = useState(null)
+  const [selectedGridGeometry, setSelectedGridGeometry] = useState(null)
   const [riskData, setRiskData] = useState(null)
+  const [geoState, setGeoState] = useState(GEOLOCATION_STATE.INITIAL)
+  const [geoError, setGeoError] = useState(null)
   const [isResqModeOpen, setIsResqModeOpen] = useState(false)
-  const [geoLocating, setGeoLocating] = useState(false)
-
-  // Fetch full risk breakdown when grid changes
-  useEffect(() => {
-    if (!selectedGridId) {
-      setRiskData(null)
-      return
-    }
-
-    let isCurrent = true
-    getGridRiskBreakdown(selectedGridId).then((data) => {
-      if (isCurrent) setRiskData(data)
-    })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [selectedGridId])
-
-  // Listen to place selection from TopBar search
-  useEffect(() => {
-    const handlePlaceEvent = async (e) => {
-      const candidate = e.detail
-      if (!candidate) return
-      setSelectedLocation(candidate)
-
-      if (candidate.gridId) {
-        setSelectedGridId(candidate.gridId)
-      } else {
-        const grid = await getGridByPoint(candidate.lat, candidate.lon, candidate.state)
-        if (grid && grid.grid_id) {
-          setSelectedGridId(grid.grid_id)
-        }
-      }
-    }
-
-    window.addEventListener('resq:select-place', handlePlaceEvent)
-    return () => window.removeEventListener('resq:select-place', handlePlaceEvent)
-  }, [])
 
   // 1. Real-Time Browser Geolocation Handler
-  const handleLocateMe = useCallback(() => {
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.')
-      return
-    }
+  const handleLocateMe = useCallback(async () => {
+    setGeoState(GEOLOCATION_STATE.LOCATING)
+    setGeoError(null)
 
-    setGeoLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude
-        const lon = pos.coords.longitude
+    try {
+      const coords = await getDeviceCoordinates()
+      setGeoState(GEOLOCATION_STATE.LOCATED)
 
-        setSelectedLocation({
-          name: 'Your Location',
-          district: 'Live Device GPS',
-          state: 'Assam / Meghalaya',
-          lat,
-          lon,
-        })
+      setSelectedLocation({
+        name: 'Your Location',
+        district: `GPS Accuracy: ±${coords.accuracy}m`,
+        state: 'Live Device Geolocation',
+        lat: coords.lat,
+        lon: coords.lon,
+        accuracy: coords.accuracy,
+      })
 
-        // Reverse lookup 500m grid cell via PostGIS ST_Contains
-        try {
-          const grid = await getGridByPoint(lat, lon)
-          if (grid && grid.grid_id) {
-            setSelectedGridId(grid.grid_id)
-          }
-        } catch (err) {
-          console.error('Point lookup error:', err)
-        } finally {
-          setGeoLocating(false)
+      // Resolve coordinates to 500m grid cell via PostGIS ST_Contains
+      const pointRisk = await getCurrentGridRisk(coords.lat, coords.lon)
+      if (pointRisk && pointRisk.inCoverage) {
+        setSelectedGridId(pointRisk.gridId)
+        setSelectedGridGeometry(pointRisk.geometry)
+        setRiskData(pointRisk)
+      } else {
+        setSelectedGridId(null)
+        setSelectedGridGeometry(null)
+        setRiskData(null)
+        setGeoError('Location is outside RESQ operational coverage (Assam & Meghalaya).')
+      }
+    } catch (err) {
+      setGeoState(err.state || GEOLOCATION_STATE.ERROR)
+      setGeoError(err.message || 'Unable to retrieve location.')
+
+      // Graceful fallback demo coordinates (Guwahati, Assam)
+      const fallbackLat = 26.1445
+      const fallbackLon = 91.7362
+      setSelectedLocation({
+        name: 'Guwahati (Default Demonstration GPS)',
+        district: 'Kamrup Metropolitan',
+        state: 'Assam',
+        lat: fallbackLat,
+        lon: fallbackLon,
+        accuracy: 50,
+      })
+
+      try {
+        const pointRisk = await getCurrentGridRisk(fallbackLat, fallbackLon)
+        if (pointRisk && pointRisk.inCoverage) {
+          setSelectedGridId(pointRisk.gridId)
+          setSelectedGridGeometry(pointRisk.geometry)
+          setRiskData(pointRisk)
         }
-      },
-      (err) => {
-        console.warn('Geolocation denied or failed:', err.message)
-        // Graceful fallback to default demonstration coordinates (Guwahati)
-        setSelectedLocation({
-          name: 'Guwahati (Default GPS Fallback)',
-          district: 'Kamrup Metropolitan',
-          state: 'Assam',
-          lat: 26.1445,
-          lon: 91.7362,
-        })
-        setSelectedGridId('AS_00210744')
-        setGeoLocating(false)
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    )
+      } catch (e) {
+        console.error('Fallback lookup failed:', e)
+      }
+    }
   }, [])
 
   // 2. Quick Demo Place Selection Handler
   const handleSelectQuickPlace = useCallback(async (placeName) => {
     try {
-      const candidates = await searchGeocode(placeName)
+      const candidates = await searchLocations(placeName)
       if (candidates && candidates.length > 0) {
         const top = candidates[0]
         setSelectedLocation(top)
 
-        if (top.gridId) {
-          setSelectedGridId(top.gridId)
-        } else {
-          const grid = await getGridByPoint(top.lat, top.lon, top.state)
-          if (grid && grid.grid_id) {
-            setSelectedGridId(grid.grid_id)
-          }
+        const pointRisk = await getCurrentGridRisk(top.lat, top.lon)
+        if (pointRisk && pointRisk.inCoverage) {
+          setSelectedGridId(pointRisk.gridId)
+          setSelectedGridGeometry(pointRisk.geometry)
+          setRiskData(pointRisk)
         }
       }
     } catch (err) {
@@ -129,28 +105,69 @@ export default function MapView() {
   }, [])
 
   // 3. Map Grid Cell Click Handler
-  const handleGridSelect = useCallback((props) => {
+  const handleGridSelect = useCallback(async (props) => {
     if (!props || !props.grid_id) return
-    setSelectedGridId(props.grid_id)
+    const gridId = props.grid_id
+    setSelectedGridId(gridId)
     setSelectedLocation({
-      name: `Grid ${props.grid_id}`,
+      name: `Grid ${gridId}`,
       district: props.district || 'Assam',
       state: props.state || 'Assam',
       lat: parseFloat(props.center_lat),
       lon: parseFloat(props.center_lon),
     })
+
+    try {
+      const risk = await getGridRisk(gridId)
+      setRiskData(risk)
+    } catch (err) {
+      console.error('Grid risk fetch error:', err)
+    }
   }, [])
 
   // 4. Active Event Marker Click Handler
-  const handleEventSelect = useCallback((props) => {
+  const handleEventSelect = useCallback(async (props) => {
     if (!props) return
+    const lat = parseFloat(props.latitude)
+    const lon = parseFloat(props.longitude)
+
     setSelectedLocation({
       name: props.location_text || props.event_type || 'Disaster Incident',
       district: props.state || 'Assam',
       state: props.state || 'Assam',
-      lat: parseFloat(props.latitude),
-      lon: parseFloat(props.longitude),
+      lat,
+      lon,
     })
+
+    try {
+      const pointRisk = await getCurrentGridRisk(lat, lon)
+      if (pointRisk && pointRisk.inCoverage) {
+        setSelectedGridId(pointRisk.gridId)
+        setSelectedGridGeometry(pointRisk.geometry)
+        setRiskData(pointRisk)
+      }
+    } catch (err) {
+      console.error('Event grid lookup error:', err)
+    }
+  }, [])
+
+  // 5. Global Search Event Listener
+  useEffect(() => {
+    const handlePlaceEvent = async (e) => {
+      const candidate = e.detail
+      if (!candidate) return
+      setSelectedLocation(candidate)
+
+      const pointRisk = await getCurrentGridRisk(candidate.lat, candidate.lon)
+      if (pointRisk && pointRisk.inCoverage) {
+        setSelectedGridId(pointRisk.gridId)
+        setSelectedGridGeometry(pointRisk.geometry)
+        setRiskData(pointRisk)
+      }
+    }
+
+    window.addEventListener('resq:select-place', handlePlaceEvent)
+    return () => window.removeEventListener('resq:select-place', handlePlaceEvent)
   }, [])
 
   return (
@@ -160,10 +177,12 @@ export default function MapView() {
           <MapSurface
             mode={mode}
             selectedLocation={selectedLocation}
-            selectedGridId={selectedGridId}
+            selectedGridGeometry={selectedGridGeometry}
+            selectedGridStatus={riskData?.riskSummary?.riskStatus}
             onGridSelect={handleGridSelect}
             onEventSelect={handleEventSelect}
           />
+
           <MapChrome
             activeMode={mode}
             onModeChange={setMode}

@@ -16,7 +16,8 @@ export function MapSurface({
   onEventSelect,
   onMapReady,
   selectedLocation = null,
-  selectedGridId = null,
+  selectedGridGeometry = null,
+  selectedGridStatus = null,
 }) {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -70,7 +71,6 @@ export function MapSurface({
         },
       })
 
-      // Grid cell click interaction
       map.on('click', 'risk-grid-fill', (e) => {
         if (e.features && e.features.length > 0) {
           const props = e.features[0].properties
@@ -87,7 +87,43 @@ export function MapSurface({
       })
     }
 
-    // 2. Add Active Disaster Events Source & Layers
+    // 2. Add Selected Grid Highlight Layer
+    if (!map.getSource('selected-grid-highlight-source')) {
+      map.addSource('selected-grid-highlight-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addLayer({
+        id: 'selected-grid-highlight-fill',
+        type: 'fill',
+        source: 'selected-grid-highlight-source',
+        paint: {
+          'fill-color': [
+            'match',
+            ['get', 'risk_status'],
+            'CRITICAL', 'rgba(220, 38, 38, 0.65)',
+            'HIGH', 'rgba(234, 88, 12, 0.55)',
+            'MODERATE', 'rgba(217, 119, 6, 0.45)',
+            'rgba(22, 163, 74, 0.35)',
+          ],
+          'fill-opacity': 0.9,
+        },
+      })
+
+      map.addLayer({
+        id: 'selected-grid-highlight-line',
+        type: 'line',
+        source: 'selected-grid-highlight-source',
+        paint: {
+          'line-color': '#0f172a',
+          'line-width': 3,
+          'line-opacity': 1,
+        },
+      })
+    }
+
+    // 3. Add Active Disaster Events Source & Layers
     if (!map.getSource('active-events-source')) {
       map.addSource('active-events-source', {
         type: 'geojson',
@@ -119,7 +155,6 @@ export function MapSurface({
         },
       })
 
-      // Event marker click popup
       map.on('click', 'active-events-circle', (e) => {
         if (e.features && e.features.length > 0) {
           const feat = e.features[0]
@@ -173,7 +208,6 @@ export function MapSurface({
     const source = map.getSource('risk-grid-source')
     if (!source) return
 
-    // Only load 500m cells when zoomed in sufficiently to avoid heavy DOM/network
     if (z < 10.5) {
       source.setData({ type: 'FeatureCollection', features: [] })
       return
@@ -228,7 +262,7 @@ export function MapSurface({
     }
   }, [])
 
-  // 1. Initialize MapLibre instance
+  // 1. Initialize MapLibre instance with ResizeObserver
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return
 
@@ -248,6 +282,7 @@ export function MapSurface({
 
     map.on('load', () => {
       setMapLoaded(true)
+      map.resize()
       setupLayers(map)
       refreshViewportGrids()
       refreshActiveEvents()
@@ -283,9 +318,16 @@ export function MapSurface({
       }
     })
 
+    // ResizeObserver ensures map canvas always updates when layout resizes
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize()
+    })
+    resizeObserver.observe(mapContainerRef.current)
+
     mapRef.current = map
 
     return () => {
+      resizeObserver.disconnect()
       map.remove()
       mapRef.current = null
     }
@@ -299,8 +341,8 @@ export function MapSurface({
     const nextStyle = getMapStyle(mode)
     map.setStyle(nextStyle)
 
-    // Re-attach data layers once new style loads
     map.once('style.load', () => {
+      map.resize()
       setupLayers(map)
       refreshViewportGrids()
       refreshActiveEvents()
@@ -313,7 +355,33 @@ export function MapSurface({
     }
   }, [mode, mapLoaded, setupLayers, refreshViewportGrids, refreshActiveEvents])
 
-  // 3. Render Selected Location Marker
+  // 3. Render Selected / Current 500m Grid Highlight Polygon
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    const source = map.getSource('selected-grid-highlight-source')
+    if (!source) return
+
+    if (selectedGridGeometry) {
+      source.setData({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: selectedGridGeometry,
+            properties: {
+              risk_status: selectedGridStatus || 'CRITICAL',
+            },
+          },
+        ],
+      })
+    } else {
+      source.setData({ type: 'FeatureCollection', features: [] })
+    }
+  }, [selectedGridGeometry, selectedGridStatus, mapLoaded])
+
+  // 4. Render Current Location Marker with Radar Pulse
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
