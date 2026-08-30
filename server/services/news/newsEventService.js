@@ -4,6 +4,7 @@ import pool from "../../config/db.js";
 import { extractDisasterEvent } from "../../../nlp/index.js";
 import { resolveCoordinates, findAffectedGridCells } from "./newsGeolocationService.js";
 import { clusterAndCorroborateEvent } from "./corroborationService.js";
+import { recomputeGridsFromActiveEvents } from "../risk/dynamicRiskService.js";
 
 // Processes pending un-extracted RSS items in batches
 export const processPendingNewsItems = async (batchSize = 50) => {
@@ -147,23 +148,8 @@ export const processPendingNewsItems = async (batchSize = 50) => {
             summary.gridsLinked++;
           }
 
-          // Single batched update for affected 500m grid cells
-          const stateTable = state.toLowerCase() === "meghalaya" ? "grid_500m.meghalaya" : "grid_500m.assam";
-          const maxImpact = Math.round(nlpResult.severity * finalConfidence * 10) / 10;
-
-          await client.query(
-            `
-            UPDATE ${stateTable}
-            SET 
-              news_risk = GREATEST(COALESCE(news_risk, 0), $1),
-              nlp_event_risk = GREATEST(COALESCE(nlp_event_risk, 0), $1),
-              road_closure_risk = CASE WHEN $2 = TRUE THEN 90.0 ELSE COALESCE(road_closure_risk, 0) END,
-              last_dynamic_update = NOW(),
-              updated_at = NOW()
-            WHERE grid_id = ANY($3::varchar[]);
-          `,
-            [maxImpact, nlpResult.impact.roadBlocked || nlpResult.impact.bridgeClosed, gridIds]
-          );
+          // Recompute complete dynamic risk state, combined score, confidence, and status reactively
+          await recomputeGridsFromActiveEvents(gridIds, state, client);
         }
 
         // Update item status to GRID_LINKED

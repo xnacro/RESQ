@@ -2,6 +2,7 @@
 // Runs periodic polling of RSS feeds followed by NLP event extraction and 500m grid linking
 import { pollAllRssSources } from "./rssService.js";
 import { processPendingNewsItems } from "./newsEventService.js";
+import { expireStaleEvents } from "../risk/dynamicRiskService.js";
 
 let schedulerTimer = null;
 let isJobRunning = false;
@@ -46,10 +47,14 @@ export const runPipelineCycle = async () => {
     schedulerState.metrics.totalItemsIngested += newItemsCount;
 
     // 2. Process all pending items through NLP extraction and 500m grid linking
-    console.log("🧠 [CRON] Step 2/2: Processing pending items via NLP...");
+    console.log("🧠 [CRON] Step 2/3: Processing pending items via NLP...");
     const nlpSummary = await processPendingNewsItems(50);
     schedulerState.metrics.totalEventsCreated += nlpSummary.eventsCreated || 0;
     schedulerState.metrics.totalGridsLinked += nlpSummary.gridsLinked || 0;
+
+    // 3. Expire stale events and recalibrate affected grid cells
+    console.log("🧹 [CRON] Step 3/3: Running event expiration & dynamic risk decay...");
+    const expireSummary = await expireStaleEvents();
 
     const durationSec = ((Date.now() - cycleStart) / 1000).toFixed(2);
     schedulerState.lastStatus = "SUCCESS";
@@ -58,13 +63,15 @@ export const runPipelineCycle = async () => {
     console.log(`🎉 [CRON] Cycle #${schedulerState.totalRuns} completed in ${durationSec}s:`);
     console.log(`   ↳ New Items Stored: ${newItemsCount}`);
     console.log(`   ↳ Events Created: ${nlpSummary.eventsCreated}`);
-    console.log(`   ↳ 500m Grids Linked: ${nlpSummary.gridsLinked}\n`);
+    console.log(`   ↳ 500m Grids Linked: ${nlpSummary.gridsLinked}`);
+    console.log(`   ↳ Stale Events Expired: ${expireSummary.expiredEventsCount}\n`);
 
     return {
       status: "SUCCESS",
       durationSec,
       newItemsCount,
       nlpSummary,
+      expireSummary,
     };
   } catch (err) {
     console.error(`❌ [CRON] Cycle #${schedulerState.totalRuns} failed:`, err.message);
