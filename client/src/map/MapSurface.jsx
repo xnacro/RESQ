@@ -32,47 +32,57 @@ export function MapSurface({
   const setupLayers = useCallback((map) => {
     if (!map || !map.isStyleLoaded()) return
 
-    // 1. Add 500m Risk Grid Source & Layers
+    const styleLayers = map.getStyle().layers || []
+    const firstSymbolLayer = styleLayers.find((l) => l.type === 'symbol')
+    const beforeLabelId = firstSymbolLayer ? firstSymbolLayer.id : undefined
+
+    // 1. Add 500m Risk Grid Source & Layers below labels
     if (!map.getSource('risk-grid-source')) {
       map.addSource('risk-grid-source', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
 
-      map.addLayer({
-        id: 'risk-grid-fill',
-        type: 'fill',
-        source: 'risk-grid-source',
-        paint: {
-          'fill-color': [
-            'match',
-            ['get', 'risk_status'],
-            'CRITICAL', 'rgba(220, 38, 38, 0.55)',
-            'HIGH', 'rgba(234, 88, 12, 0.45)',
-            'MODERATE', 'rgba(217, 119, 6, 0.35)',
-            'rgba(22, 163, 74, 0.25)',
-          ],
-          'fill-opacity': 0.85,
+      map.addLayer(
+        {
+          id: 'risk-grid-fill',
+          type: 'fill',
+          source: 'risk-grid-source',
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'risk_status'],
+              'CRITICAL', 'rgba(220, 38, 38, 0.45)',
+              'HIGH', 'rgba(234, 88, 12, 0.35)',
+              'MODERATE', 'rgba(217, 119, 6, 0.25)',
+              'rgba(0, 0, 0, 0)',
+            ],
+            'fill-opacity': 0.85,
+          },
         },
-      })
+        beforeLabelId,
+      )
 
-      map.addLayer({
-        id: 'risk-grid-line',
-        type: 'line',
-        source: 'risk-grid-source',
-        paint: {
-          'line-color': [
-            'match',
-            ['get', 'risk_status'],
-            'CRITICAL', '#dc2626',
-            'HIGH', '#ea580c',
-            'MODERATE', '#d97706',
-            '#16a34a',
-          ],
-          'line-width': 1.2,
-          'line-opacity': 0.9,
+      map.addLayer(
+        {
+          id: 'risk-grid-line',
+          type: 'line',
+          source: 'risk-grid-source',
+          paint: {
+            'line-color': [
+              'match',
+              ['get', 'risk_status'],
+              'CRITICAL', '#dc2626',
+              'HIGH', '#ea580c',
+              'MODERATE', '#d97706',
+              'rgba(148, 163, 184, 0.2)',
+            ],
+            'line-width': 1.0,
+            'line-opacity': 0.8,
+          },
         },
-      })
+        beforeLabelId,
+      )
 
       map.on('click', 'risk-grid-fill', (e) => {
         if (e.features && e.features.length > 0) {
@@ -97,33 +107,39 @@ export function MapSurface({
         data: { type: 'FeatureCollection', features: [] },
       })
 
-      map.addLayer({
-        id: 'selected-grid-highlight-fill',
-        type: 'fill',
-        source: 'selected-grid-highlight-source',
-        paint: {
-          'fill-color': [
-            'match',
-            ['get', 'risk_status'],
-            'CRITICAL', 'rgba(220, 38, 38, 0.65)',
-            'HIGH', 'rgba(234, 88, 12, 0.55)',
-            'MODERATE', 'rgba(217, 119, 6, 0.45)',
-            'rgba(22, 163, 74, 0.35)',
-          ],
-          'fill-opacity': 0.9,
+      map.addLayer(
+        {
+          id: 'selected-grid-highlight-fill',
+          type: 'fill',
+          source: 'selected-grid-highlight-source',
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'risk_status'],
+              'CRITICAL', 'rgba(220, 38, 38, 0.55)',
+              'HIGH', 'rgba(234, 88, 12, 0.45)',
+              'MODERATE', 'rgba(217, 119, 6, 0.35)',
+              'rgba(37, 99, 235, 0.25)',
+            ],
+            'fill-opacity': 0.9,
+          },
         },
-      })
+        beforeLabelId,
+      )
 
-      map.addLayer({
-        id: 'selected-grid-highlight-line',
-        type: 'line',
-        source: 'selected-grid-highlight-source',
-        paint: {
-          'line-color': '#0f172a',
-          'line-width': 3,
-          'line-opacity': 1,
+      map.addLayer(
+        {
+          id: 'selected-grid-highlight-line',
+          type: 'line',
+          source: 'selected-grid-highlight-source',
+          paint: {
+            'line-color': '#2563eb',
+            'line-width': 2.5,
+            'line-opacity': 1,
+          },
         },
-      })
+        beforeLabelId,
+      )
     }
 
     // 3. Add Active Disaster Events Source & Layers
