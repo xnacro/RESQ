@@ -79,6 +79,9 @@ export async function getActiveDisasterEvents() {
   }
 }
 
+// Re-export routing services
+export { getRoute, checkRoutingHealth } from './routingApi.js'
+
 export default {
   searchGeocode,
   getGridByPoint,
