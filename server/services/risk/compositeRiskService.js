@@ -146,7 +146,7 @@ export const computeCompositeStaticRisk = async (stateName, chunkSize = 60000) =
                   END
                 ) +
                 0.10 * COALESCE(waterbody_percentage, 0) +
-                0.10 * LEAST(100.0, COALESCE(population_density, 0) / 25.0) +
+                0.10 * LEAST(100.0, COALESCE(population_density, 0) / 50.0) +
                 0.10 * COALESCE(infrastructure_exposure, 0)
               ))
             )::numeric, 1) AS calc_static_risk
