@@ -3,11 +3,11 @@
 
 import { RESQ_PALETTE } from './resqCartographyTokens.js'
 
-// Standard vector tile source configuration
+// Standard vector tile source and asset configuration
 const VECTOR_SOURCE_ID = 'openmaptiles'
 const VECTOR_SOURCE_URL = 'https://tiles.openfreemap.org/planet'
 const GLYPHS_URL = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf'
-const SPRITE_URL = 'https://tiles.openfreemap.org/sprites/bright'
+const SPRITE_URL = 'https://tiles.openfreemap.org/sprites/ofm_f384/ofm'
 
 export function buildResqVectorStyle({ theme = 'light' } = {}) {
   const isDark = theme === 'dark'
@@ -75,13 +75,13 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
 
       // 2. Landcover & Natural Areas
       {
-        id: 'resq-landcover-ice',
+        id: 'resq-landcover-glacier',
         type: 'fill',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'landcover',
-        filter: ['all', ['==', 'class', 'ice']],
+        filter: ['==', ['get', 'subclass'], 'glacier'],
         paint: {
-          'fill-color': '#f8fafc',
+          'fill-color': '#ffffff',
           'fill-opacity': 0.8,
         },
       },
@@ -90,10 +90,21 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'fill',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'landcover',
-        filter: ['all', ['==', 'class', 'wood']],
+        filter: ['==', ['get', 'class'], 'wood'],
         paint: {
           'fill-color': p.forest,
           'fill-opacity': 0.7,
+        },
+      },
+      {
+        id: 'resq-landcover-grass',
+        type: 'fill',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'landcover',
+        filter: ['==', ['get', 'class'], 'grass'],
+        paint: {
+          'fill-color': p.park,
+          'fill-opacity': 0.6,
         },
       },
 
@@ -113,7 +124,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'fill',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'landuse',
-        filter: ['all', ['in', 'class', 'residential', 'suburb', 'neighbourhood']],
+        filter: ['match', ['get', 'class'], ['residential', 'suburb', 'neighbourhood'], true, false],
         paint: {
           'fill-color': p.landAlt,
           'fill-opacity': 0.5,
@@ -124,10 +135,21 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'fill',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'landuse',
-        filter: ['all', ['in', 'class', 'commercial', 'retail']],
+        filter: ['match', ['get', 'class'], ['commercial', 'retail'], true, false],
         paint: {
           'fill-color': p.urban,
           'fill-opacity': 0.35,
+        },
+      },
+      {
+        id: 'resq-landuse-industrial',
+        type: 'fill',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'landuse',
+        filter: ['match', ['get', 'class'], ['industrial', 'dam', 'garages'], true, false],
+        paint: {
+          'fill-color': p.urban,
+          'fill-opacity': 0.45,
         },
       },
 
@@ -147,7 +169,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'waterway',
-        filter: ['all', ['in', 'class', 'river', 'canal']],
+        filter: ['match', ['get', 'class'], ['river', 'canal'], true, false],
         paint: {
           'line-color': p.waterLine,
           'line-width': [
@@ -164,7 +186,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'waterway',
-        filter: ['all', ['in', 'class', 'stream', 'drain', 'ditch']],
+        filter: ['match', ['get', 'class'], ['stream', 'drain', 'ditch'], true, false],
         minzoom: 11,
         paint: {
           'line-color': p.waterLine,
@@ -183,7 +205,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['==', 'brunnel', 'tunnel']],
+        filter: ['==', ['get', 'brunnel'], 'tunnel'],
         paint: {
           'line-color': p.roadCasing,
           'line-dasharray': [2, 2],
@@ -197,7 +219,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'path', 'track', 'pedestrian', 'footway']],
+        filter: ['match', ['get', 'class'], ['path', 'track', 'pedestrian', 'footway'], true, false],
         minzoom: 13,
         paint: {
           'line-color': isDark ? '#334155' : '#cbd5e1',
@@ -210,7 +232,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'minor', 'residential', 'service']],
+        filter: ['match', ['get', 'class'], ['minor', 'residential', 'service'], true, false],
         minzoom: 12,
         paint: {
           'line-color': isDark ? '#1e293b' : '#e2e8f0',
@@ -226,7 +248,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'minor', 'residential', 'service']],
+        filter: ['match', ['get', 'class'], ['minor', 'residential', 'service'], true, false],
         minzoom: 12,
         paint: {
           'line-color': p.roadFill,
@@ -242,7 +264,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'secondary', 'tertiary']],
+        filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
         minzoom: 9,
         paint: {
           'line-color': isDark ? '#334155' : '#cbd5e1',
@@ -258,7 +280,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'secondary', 'tertiary']],
+        filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
         minzoom: 9,
         paint: {
           'line-color': p.roadFill,
@@ -274,7 +296,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'primary', 'trunk']],
+        filter: ['match', ['get', 'class'], ['primary', 'trunk'], true, false],
         minzoom: 6,
         paint: {
           'line-color': isDark ? '#475569' : '#94a3b8',
@@ -291,7 +313,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['in', 'class', 'primary', 'trunk']],
+        filter: ['match', ['get', 'class'], ['primary', 'trunk'], true, false],
         minzoom: 6,
         paint: {
           'line-color': p.roadFill,
@@ -308,7 +330,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['==', 'class', 'motorway']],
+        filter: ['==', ['get', 'class'], 'motorway'],
         minzoom: 5,
         paint: {
           'line-color': isDark ? '#64748b' : '#64748b',
@@ -325,7 +347,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
-        filter: ['all', ['==', 'class', 'motorway']],
+        filter: ['==', ['get', 'class'], 'motorway'],
         minzoom: 5,
         paint: {
           'line-color': p.roadFill,
@@ -358,7 +380,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'boundary',
-        filter: ['all', ['>=', 'admin_level', 4]],
+        filter: ['>=', ['get', 'admin_level'], 4],
         paint: {
           'line-color': isDark ? '#475569' : '#cbd5e1',
           'line-width': 1,
@@ -370,7 +392,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'boundary',
-        filter: ['all', ['<=', 'admin_level', 3]],
+        filter: ['<=', ['get', 'admin_level'], 3],
         paint: {
           'line-color': p.boundary,
           'line-width': 1.5,
@@ -385,7 +407,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         'source-layer': 'water_name',
         layout: {
           'text-field': '{name}',
-          'text-font': ['Noto Sans Regular', 'Open Sans Regular'],
+          'text-font': ['Noto Sans Italic'],
           'text-size': 11,
           'text-letter-spacing': 0.05,
           'symbol-placement': 'line',
@@ -403,11 +425,11 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation_name',
-        filter: ['all', ['in', 'class', 'motorway', 'trunk', 'primary']],
+        filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], true, false],
         minzoom: 10,
         layout: {
           'text-field': '{name}',
-          'text-font': ['Noto Sans Regular', 'Open Sans Regular'],
+          'text-font': ['Noto Sans Regular'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
             10, 9,
@@ -428,11 +450,11 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
-        filter: ['all', ['in', 'class', 'neighbourhood', 'suburb', 'village']],
+        filter: ['match', ['get', 'class'], ['neighbourhood', 'suburb', 'village'], true, false],
         minzoom: 12,
         layout: {
           'text-field': '{name}',
-          'text-font': ['Noto Sans Regular', 'Open Sans Regular'],
+          'text-font': ['Noto Sans Regular'],
           'text-size': 11,
         },
         paint: {
@@ -446,11 +468,11 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
-        filter: ['all', ['in', 'class', 'town', 'district']],
+        filter: ['match', ['get', 'class'], ['town', 'district'], true, false],
         minzoom: 8,
         layout: {
           'text-field': '{name}',
-          'text-font': ['Noto Sans Bold', 'Open Sans Bold'],
+          'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
             8, 11,
@@ -468,10 +490,10 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
-        filter: ['all', ['in', 'class', 'city', 'state', 'country']],
+        filter: ['match', ['get', 'class'], ['city', 'state', 'country'], true, false],
         layout: {
           'text-field': '{name}',
-          'text-font': ['Noto Sans Bold', 'Open Sans Bold'],
+          'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
             5, 12,
