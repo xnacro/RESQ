@@ -27,6 +27,7 @@ import { Tabs, TabPanel } from '../ui/Tabs.jsx'
 import { Button } from '../ui/Button.jsx'
 import { Spinner } from '../ui/Spinner.jsx'
 import { getGridRisk } from '../services/riskApi.js'
+import { RouteSummaryPanel } from './RouteSummaryPanel.jsx'
 import styles from './ContextPanel.module.css'
 
 const TAB_ITEMS = [
@@ -49,11 +50,7 @@ function getDiagnosticBullets(riskData) {
   if (!riskData) return []
   const score = riskData.riskSummary?.riskScore ?? 24.8
   const status = riskData.riskSummary?.riskStatus || 'LOW'
-  const dynamicRisk = riskData.riskSummary?.dynamicRisk || 0
-  const staticRisk = riskData.riskSummary?.staticRisk || 24.8
-  const confidence = Math.round((riskData.riskSummary?.riskConfidence || 0.95) * 100)
   const activeEvents = riskData.activeEvents || []
-  const regionalEvents = riskData.regionalEvents || []
   const channels = riskData.dynamicFactorChannels || {}
   const staticF = riskData.staticFactors || {}
 
@@ -98,31 +95,38 @@ function getDiagnosticBullets(riskData) {
   const terrainItems = []
   if (staticF.elevationMean) terrainItems.push(`elevation ${staticF.elevationMean.toFixed(0)}m`)
   if (staticF.slopeMean) terrainItems.push(`slope ${staticF.slopeMean.toFixed(1)}°`)
-  if (staticF.distanceToRiver) terrainItems.push(`river distance ${(staticF.distanceToRiver / 1000).toFixed(1)}km`)
-  bullets.push({
-    icon: Mountain,
-    iconColor: '#64748b',
-    label: 'Terrain Baseline',
-    text: `Static physical vulnerability is ${staticRisk.toFixed(1)}/100 (${terrainItems.join(', ') || 'standard baseline'}).`,
-  })
-
-  // 4. Regional & District Intelligence
-  if (regionalEvents.length > 0) {
+  if (staticF.flowAccumulation) terrainItems.push(`flow accum ${staticF.flowAccumulation.toFixed(0)}`)
+  if (terrainItems.length > 0) {
     bullets.push({
-      icon: Radio,
-      iconColor: '#0284c7',
-      label: 'Regional Bulletins',
-      text: `${regionalEvents.length} active disaster bulletins currently monitored across Assam & Kamrup.`,
+      icon: Mountain,
+      iconColor: '#64748b',
+      label: 'Terrain Baseline',
+      text: `Topographic profile: ${terrainItems.join(', ')}.`,
     })
   }
 
-  // 5. Engine Fusion Transparency
-  bullets.push({
-    icon: Cpu,
-    iconColor: '#7c3aed',
-    label: 'Engine Fusion',
-    text: `40% Static Baseline (${staticRisk.toFixed(1)}) + 60% Dynamic Impact (${dynamicRisk.toFixed(1)}) · ${confidence}% confidence.`,
-  })
+  // 4. Exposed Population & Buildings
+  const popCount = staticF.populationDensity != null ? Math.round(staticF.populationDensity) : 0
+  const bldCount = staticF.buildingCount != null ? Math.round(staticF.buildingCount) : 0
+  if (popCount > 0 || bldCount > 0) {
+    bullets.push({
+      icon: Users,
+      iconColor: '#64748b',
+      label: 'Exposure Density',
+      text: `Estimated ~${popCount.toLocaleString()} residents and ${bldCount} structural assets in 500m area.`,
+    })
+  }
+
+  // 5. Environmental Proximity
+  if (staticF.riverDistanceMeters) {
+    const km = (staticF.riverDistanceMeters / 1000).toFixed(1)
+    bullets.push({
+      icon: Droplets,
+      iconColor: '#0284c7',
+      label: 'Hydrology Buffer',
+      text: `${km} km proximity to major Brahmaputra river drainage network.`,
+    })
+  }
 
   return bullets
 }
@@ -133,6 +137,12 @@ export function ContextPanel({
   onLocateMe,
   onSelectQuickPlace,
   onOpenResqMode,
+  onGetDirections,
+  routeData = null,
+  routeOrigin = null,
+  routeDestination = null,
+  onStartNavigation,
+  onClearRoute,
 }) {
   const [tab, setTab] = useState('overview')
   const [riskData, setRiskData] = useState(null)
@@ -235,6 +245,23 @@ export function ContextPanel({
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (Math.min(riskScore, 100) / 100) * circumference
 
+  // Render Route Summary & Maneuver Preview when route is calculated
+  if (routeData) {
+    return (
+      <aside className={styles.dock} aria-label="Route Summary & Navigation Panel">
+        <div className={styles.panelCard} style={{ padding: 0 }}>
+          <RouteSummaryPanel
+            routeData={routeData}
+            origin={routeOrigin}
+            destination={routeDestination || selectedLocation}
+            onStartNavigation={onStartNavigation}
+            onClearRoute={onClearRoute}
+          />
+        </div>
+      </aside>
+    )
+  }
+
   return (
     <aside className={styles.dock} aria-label="Disaster Intelligence Panel">
       <div className={styles.panelCard}>
@@ -271,7 +298,7 @@ export function ContextPanel({
             variant="primary"
             icon={Navigation}
             block
-            onClick={onOpenResqMode}
+            onClick={onGetDirections || onOpenResqMode}
             className={styles.directionsBtn}
           >
             Get Directions

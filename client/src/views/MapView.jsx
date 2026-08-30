@@ -1,4 +1,4 @@
-// Main MapView coordinating MapLibre WebGL canvas, search, geolocation, and intelligence panel
+// Main MapView coordinating MapLibre WebGL canvas, search, geolocation, routing, and intelligence panel
 import { useState, useCallback, useEffect } from 'react'
 import { MapChrome } from '../map/MapChrome.jsx'
 import { MapSurface } from '../map/MapSurface.jsx'
@@ -6,6 +6,7 @@ import { MapViewportProvider } from '../map/viewport.jsx'
 import { ContextPanel } from '../panels/ContextPanel.jsx'
 import { MobileBottomSheet } from '../panels/MobileBottomSheet.jsx'
 import { ResqModeModal } from '../panels/ResqModeModal.jsx'
+import { SourceAddressModal } from '../panels/SourceAddressModal.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
 import {
   getDeviceCoordinates,
@@ -14,6 +15,7 @@ import {
   GEOLOCATION_STATE,
 } from '../services/locationApi.js'
 import { getCurrentGridRisk, getGridRisk } from '../services/riskApi.js'
+import { useRouteStore } from '../services/routeStore.js'
 import styles from './MapView.module.css'
 
 export default function MapView() {
@@ -25,6 +27,30 @@ export default function MapView() {
   const [geoState, setGeoState] = useState(GEOLOCATION_STATE.INITIAL)
   const [geoError, setGeoError] = useState(null)
   const [isResqModeOpen, setIsResqModeOpen] = useState(false)
+
+  // Route store state and dispatchers
+  const {
+    origin: routeOrigin,
+    destination: routeDestination,
+    routeData,
+    isRouting,
+    routingError,
+    isSourceModalOpen,
+    setDestination: setRouteDestination,
+    openSourceModal,
+    closeSourceModal,
+    calculateRoutePlan,
+    clearRoute,
+    setNavigationMode,
+  } = useRouteStore()
+
+  // Keep destination synced with currently selected location
+  const handleSelectLocation = useCallback((loc) => {
+    setSelectedLocation(loc)
+    if (loc) {
+      setRouteDestination(loc)
+    }
+  }, [setRouteDestination])
 
   // 1. Real-Time Browser Geolocation Handler with Reverse Geocode Resolution
   const handleLocateMe = useCallback(async () => {
@@ -45,16 +71,20 @@ export default function MapView() {
       const districtName = reverseInfo?.district || pointRisk?.district || 'Kamrup Metropolitan'
       const stateName = reverseInfo?.state || pointRisk?.state || 'Assam'
 
-      setSelectedLocation({
+      const userLoc = {
         name: placeName,
         district: districtName,
         state: stateName,
         lat: coords.lat,
         lon: coords.lon,
+        latitude: coords.lat,
+        longitude: coords.lon,
         accuracy: coords.accuracy,
         gridId: pointRisk?.gridId || null,
         isLiveGps: true,
-      })
+      }
+
+      handleSelectLocation(userLoc)
 
       if (pointRisk && pointRisk.inCoverage) {
         setSelectedGridId(pointRisk.gridId)
@@ -73,14 +103,18 @@ export default function MapView() {
       // Graceful fallback demo coordinates (Guwahati, Assam)
       const fallbackLat = 26.1445
       const fallbackLon = 91.7362
-      setSelectedLocation({
+      const fallbackLoc = {
         name: 'Guwahati (Demonstration Center)',
         district: 'Kamrup Metropolitan',
         state: 'Assam',
         lat: fallbackLat,
         lon: fallbackLon,
+        latitude: fallbackLat,
+        longitude: fallbackLon,
         accuracy: 50,
-      })
+      }
+
+      handleSelectLocation(fallbackLoc)
 
       try {
         const pointRisk = await getCurrentGridRisk(fallbackLat, fallbackLon)
@@ -93,7 +127,7 @@ export default function MapView() {
         console.error('Fallback lookup failed:', e)
       }
     }
-  }, [])
+  }, [handleSelectLocation])
 
   // 2. Quick Demo Place Selection Handler
   const handleSelectQuickPlace = useCallback(async (placeName) => {
@@ -101,7 +135,7 @@ export default function MapView() {
       const candidates = await searchLocations(placeName)
       if (candidates && candidates.length > 0) {
         const top = candidates[0]
-        setSelectedLocation(top)
+        handleSelectLocation(top)
 
         const pointRisk = await getCurrentGridRisk(top.lat, top.lon)
         if (pointRisk && pointRisk.inCoverage) {
@@ -113,20 +147,23 @@ export default function MapView() {
     } catch (err) {
       console.error('Quick place selection error:', err)
     }
-  }, [])
+  }, [handleSelectLocation])
 
   // 3. Map Grid Cell Click Handler
   const handleGridSelect = useCallback(async (props) => {
     if (!props || !props.grid_id) return
     const gridId = props.grid_id
     setSelectedGridId(gridId)
-    setSelectedLocation({
+    const gridLoc = {
       name: `Grid ${gridId}`,
       district: props.district || 'Assam',
       state: props.state || 'Assam',
       lat: parseFloat(props.center_lat),
       lon: parseFloat(props.center_lon),
-    })
+      latitude: parseFloat(props.center_lat),
+      longitude: parseFloat(props.center_lon),
+    }
+    handleSelectLocation(gridLoc)
 
     try {
       const risk = await getGridRisk(gridId)
@@ -134,7 +171,7 @@ export default function MapView() {
     } catch (err) {
       console.error('Grid risk fetch error:', err)
     }
-  }, [])
+  }, [handleSelectLocation])
 
   // 4. Active Event Marker Click Handler
   const handleEventSelect = useCallback(async (props) => {
@@ -142,13 +179,16 @@ export default function MapView() {
     const lat = parseFloat(props.latitude)
     const lon = parseFloat(props.longitude)
 
-    setSelectedLocation({
+    const eventLoc = {
       name: props.location_text || props.event_type || 'Disaster Incident',
       district: props.state || 'Assam',
       state: props.state || 'Assam',
       lat,
       lon,
-    })
+      latitude: lat,
+      longitude: lon,
+    }
+    handleSelectLocation(eventLoc)
 
     try {
       const pointRisk = await getCurrentGridRisk(lat, lon)
@@ -160,14 +200,26 @@ export default function MapView() {
     } catch (err) {
       console.error('Event grid lookup error:', err)
     }
-  }, [])
+  }, [handleSelectLocation])
 
-  // 5. Global Search Event Listener
+  // 5. Origin Selected in SourceAddressModal -> Execute Route Calculation
+  const handleOriginSelected = useCallback(async (selectedOrigin) => {
+    const targetDest = routeDestination || selectedLocation
+    if (!targetDest) return
+    await calculateRoutePlan({
+      origin: selectedOrigin,
+      destination: targetDest,
+      mode: 'fastest',
+      vehicle: 'car',
+    })
+  }, [routeDestination, selectedLocation, calculateRoutePlan])
+
+  // 6. Global Search Event Listener
   useEffect(() => {
     const handlePlaceEvent = async (e) => {
       const candidate = e.detail
       if (!candidate) return
-      setSelectedLocation(candidate)
+      handleSelectLocation(candidate)
 
       const pointRisk = await getCurrentGridRisk(candidate.lat, candidate.lon)
       if (pointRisk && pointRisk.inCoverage) {
@@ -179,9 +231,9 @@ export default function MapView() {
 
     window.addEventListener('resq:select-place', handlePlaceEvent)
     return () => window.removeEventListener('resq:select-place', handlePlaceEvent)
-  }, [])
+  }, [handleSelectLocation])
 
-  // 6. Auto-detect user's live location on initial mount
+  // 7. Auto-detect user's live location on initial mount
   useEffect(() => {
     handleLocateMe()
   }, [handleLocateMe])
@@ -195,11 +247,27 @@ export default function MapView() {
             selectedLocation={selectedLocation}
             selectedGridGeometry={selectedGridGeometry}
             selectedGridStatus={riskData?.riskSummary?.riskStatus}
+            routeData={routeData}
             onGridSelect={handleGridSelect}
             onEventSelect={handleEventSelect}
           />
 
-          {geoError && (
+          {/* Route calculation error toast */}
+          {routingError && (
+            <div className={styles.geoBanner} style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#b91c1c' }}>
+              <span>{routingError}</span>
+              <button
+                type="button"
+                className={styles.geoBannerClose}
+                onClick={clearRoute}
+                aria-label="Dismiss error"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {geoError && !routingError && (
             <div className={styles.geoBanner}>
               <span>{geoError}</span>
               <button
@@ -223,7 +291,7 @@ export default function MapView() {
           <MobileBottomSheet
             riskData={riskData}
             selectedLocation={selectedLocation}
-            onOpenResqMode={() => setIsResqModeOpen(true)}
+            onOpenResqMode={openSourceModal}
           />
         </div>
 
@@ -233,8 +301,24 @@ export default function MapView() {
           onLocateMe={handleLocateMe}
           onSelectQuickPlace={handleSelectQuickPlace}
           onOpenResqMode={() => setIsResqModeOpen(true)}
+          onGetDirections={openSourceModal}
+          routeData={routeData}
+          routeOrigin={routeOrigin}
+          routeDestination={routeDestination || selectedLocation}
+          onStartNavigation={() => setNavigationMode('driving')}
+          onClearRoute={clearRoute}
         />
 
+        {/* Origin Selection Modal */}
+        <SourceAddressModal
+          isOpen={isSourceModalOpen}
+          onClose={closeSourceModal}
+          destination={routeDestination || selectedLocation}
+          onSelectOrigin={handleOriginSelected}
+          isRouting={isRouting}
+        />
+
+        {/* RESQ Emergency Mode Modal */}
         <ResqModeModal
           isOpen={isResqModeOpen}
           onClose={() => setIsResqModeOpen(false)}

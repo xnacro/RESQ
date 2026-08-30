@@ -41,10 +41,13 @@ export function MapSurface({
   selectedLocation = null,
   selectedGridGeometry = null,
   selectedGridStatus = null,
+  routeData = null,
 }) {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
+  const originMarkerRef = useRef(null)
+  const destMarkerRef = useRef(null)
   const popupRef = useRef(null)
   const modeRef = useRef(mode)
   const selectedLocationRef = useRef(selectedLocation)
@@ -546,6 +549,122 @@ export function MapSurface({
     if (!mapReady) return
     updateLocationMarker(selectedLocation)
   }, [selectedLocation, mapReady, updateLocationMarker])
+
+  // 5. Render Physical Road Route and Fit Camera Bounds
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const applyRoute = () => {
+      const source = map.getSource('resq-route-source')
+      if (!source) return
+
+      if (routeData && routeData.geometry && routeData.geometry.length > 0) {
+        source.setData({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: routeData.geometry,
+          },
+          properties: {},
+        })
+
+        // Render Start (Origin A) Marker
+        if (originMarkerRef.current) originMarkerRef.current.remove()
+        if (destMarkerRef.current) destMarkerRef.current.remove()
+
+        const startCoord = routeData.geometry[0]
+        const endCoord = routeData.geometry[routeData.geometry.length - 1]
+
+        const startEl = document.createElement('div')
+        startEl.style.width = '24px'
+        startEl.style.height = '24px'
+        startEl.style.borderRadius = '50%'
+        startEl.style.background = '#10b981'
+        startEl.style.border = '3px solid #ffffff'
+        startEl.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)'
+        startEl.style.display = 'flex'
+        startEl.style.alignItems = 'center'
+        startEl.style.justifyContent = 'center'
+        startEl.style.color = '#ffffff'
+        startEl.style.fontWeight = '800'
+        startEl.style.fontSize = '11px'
+        startEl.style.fontFamily = 'system-ui, sans-serif'
+        startEl.innerText = 'A'
+
+        originMarkerRef.current = new MarkerClass({ element: startEl, anchor: 'center' })
+          .setLngLat(startCoord)
+          .addTo(map)
+
+        const endEl = document.createElement('div')
+        endEl.style.width = '24px'
+        endEl.style.height = '24px'
+        endEl.style.borderRadius = '50%'
+        endEl.style.background = '#ef4444'
+        endEl.style.border = '3px solid #ffffff'
+        endEl.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)'
+        endEl.style.display = 'flex'
+        endEl.style.alignItems = 'center'
+        endEl.style.justifyContent = 'center'
+        endEl.style.color = '#ffffff'
+        endEl.style.fontWeight = '800'
+        endEl.style.fontSize = '11px'
+        endEl.style.fontFamily = 'system-ui, sans-serif'
+        endEl.innerText = 'B'
+
+        destMarkerRef.current = new MarkerClass({ element: endEl, anchor: 'center' })
+          .setLngLat(endCoord)
+          .addTo(map)
+
+        // Compute Bounding Box
+        let minLon = Infinity
+        let minLat = Infinity
+        let maxLon = -Infinity
+        let maxLat = -Infinity
+
+        for (const [lon, lat] of routeData.geometry) {
+          if (lon < minLon) minLon = lon
+          if (lat < minLat) minLat = lat
+          if (lon > maxLon) maxLon = lon
+          if (lat > maxLat) maxLat = lat
+        }
+
+        const isMobile = window.innerWidth <= 768
+        const padding = isMobile
+          ? { top: 70, bottom: 260, left: 30, right: 30 }
+          : { top: 80, bottom: 80, left: 80, right: 440 }
+
+        map.fitBounds(
+          [
+            [minLon, minLat],
+            [maxLon, maxLat],
+          ],
+          {
+            padding,
+            maxZoom: 15,
+            duration: 1200,
+            essential: true,
+          }
+        )
+      } else {
+        source.setData({ type: 'FeatureCollection', features: [] })
+        if (originMarkerRef.current) {
+          originMarkerRef.current.remove()
+          originMarkerRef.current = null
+        }
+        if (destMarkerRef.current) {
+          destMarkerRef.current.remove()
+          destMarkerRef.current = null
+        }
+      }
+    }
+
+    if (map.isStyleLoaded()) {
+      applyRoute()
+    } else {
+      map.once('style.load', applyRoute)
+    }
+  }, [routeData, mapReady])
 
   return (
     <div className={styles.wrapper}>
