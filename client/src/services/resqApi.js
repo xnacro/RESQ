@@ -212,6 +212,39 @@ export async function cancelResqSessionSos({ sessionId, reason = 'Resolved' }) {
   }
 }
 
+// 10. Fetch Live Telemetry Snapshot for Trusted Monitor Viewer (Public Link)
+export async function getResqSessionTelemetry(sessionId) {
+  if (!sessionId) return null
+  try {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(sessionId)}/telemetry`)
+    if (!res.ok) {
+      if (res.status === 404) return null
+      throw new Error(`Telemetry request failed with status ${res.status}`)
+    }
+    const data = await res.json()
+    return data
+  } catch (err) {
+    console.error('getResqSessionTelemetry error:', err.message)
+    return null
+  }
+}
+
+// 11. Register Trusted Viewer Heartbeat
+export async function registerResqTracker(sessionId, trackerName = 'Trusted Monitor') {
+  if (!sessionId) return null
+  try {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(sessionId)}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackerName }),
+    })
+    return await res.json()
+  } catch (err) {
+    console.warn('registerResqTracker warning:', err.message)
+    return null
+  }
+}
+
 export default {
   startResqSession,
   stopResqSession,
@@ -222,4 +255,6 @@ export default {
   updateResqSessionTimer,
   dispatchResqSessionSos,
   cancelResqSessionSos,
+  getResqSessionTelemetry,
+  registerResqTracker,
 }

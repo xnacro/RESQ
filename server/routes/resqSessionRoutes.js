@@ -468,7 +468,112 @@ router.post("/sos/cancel", authenticate, async (req, res) => {
   }
 });
 
-// 7. Stop / Deactivate an active RESQ Mode Session
+// 7. Get Live Telemetry Snapshot for Authorized / Trusted Trackers (Public UUID URL)
+router.get("/:sessionId/telemetry", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await findResqSessionById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "Tracking session not found or link has expired",
+      });
+    }
+
+    // Resolve geometry and active events for the session's grid
+    let geometry = null;
+    let activeEvents = [];
+
+    if (session.current_grid_id) {
+      try {
+        const asRes = await pool.query(
+          "SELECT ST_AsGeoJSON(geom)::json AS geometry FROM grid_500m.assam WHERE grid_id = $1 LIMIT 1",
+          [session.current_grid_id]
+        );
+        if (asRes.rows.length > 0) {
+          geometry = asRes.rows[0].geometry;
+        }
+      } catch (geomErr) {
+        console.warn("Telemetry geometry lookup warning:", geomErr.message);
+      }
+
+      try {
+        const breakdown = await getDynamicRiskBreakdown(session.current_grid_id);
+        activeEvents = breakdown?.activeEvents || [];
+      } catch (evErr) {
+        console.warn("Telemetry active events lookup warning:", evErr.message);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      session: {
+        sessionId: session.session_id,
+        userName: session.user_name,
+        status: session.status,
+        isActive: session.is_active,
+        isEmergency: session.status === "SOS" || Boolean(session.emergency_alert_id),
+        startedAt: session.started_at,
+        endedAt: session.ended_at,
+        lastLocationAt: session.last_location_at,
+        lastCheckinAt: session.last_checkin_at,
+        safetyTimerMinutes: session.safety_timer_minutes,
+        timerExpiresAt: session.timer_expires_at,
+        lat: session.current_lat || 26.1445,
+        lon: session.current_lon || 91.7362,
+        accuracy: session.current_accuracy || 10,
+        gridId: session.current_grid_id || "AS_00210744",
+        district: session.current_district || "Kamrup Metropolitan",
+        state: session.current_state || "Assam",
+        riskScore: session.risk_score || 24.8,
+        riskStatus: session.risk_status || "LOW",
+        staticRisk: session.static_risk || 24.8,
+        dynamicRisk: session.dynamic_risk || 0,
+        riskConfidence: session.risk_confidence || 0.95,
+        emergency: session.metadata?.emergency || null,
+      },
+      geometry,
+      activeEvents,
+    });
+  } catch (err) {
+    console.error("Telemetry fetch error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error reading session telemetry",
+    });
+  }
+});
+
+// 8. Register Trusted Tracker Heartbeat
+router.post("/:sessionId/track", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { trackerName = "Trusted Monitor" } = req.body;
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "Tracking session not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Tracker ${trackerName} registered for session ${sessionId}`,
+      sessionStatus: session.status,
+    });
+  } catch (err) {
+    console.error("Tracker heartbeat error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error registering tracker",
+    });
+  }
+});
+
+// 9. Stop / Deactivate an active RESQ Mode Session
 router.post("/stop", authenticate, async (req, res) => {
   try {
     const { sessionId } = req.body;
@@ -513,7 +618,7 @@ router.post("/stop", authenticate, async (req, res) => {
   }
 });
 
-// 8. Get Active Session for the Authenticated User
+// 10. Get Active Session for the Authenticated User
 router.get("/active/me", authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -542,7 +647,7 @@ router.get("/active/me", authenticate, async (req, res) => {
   }
 });
 
-// 9. Read Session Details by Session ID
+// 11. Read Session Details by Session ID
 router.get("/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;

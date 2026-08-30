@@ -7,6 +7,7 @@ import { AppShell } from './app/AppShell.jsx'
 import MapView from './views/MapView.jsx'
 import AboutView from './views/AboutView.jsx'
 import ResqView from './views/ResqView.jsx'
+import ResqTrackView from './views/ResqTrackView.jsx'
 import AdminView from './views/AdminView.jsx'
 import UnauthorizedView from './views/UnauthorizedView.jsx'
 
@@ -31,6 +32,16 @@ export default function App() {
             element={
               <AppShell>
                 <ResqView />
+              </AppShell>
+            }
+          />
+
+          {/* Trusted Live Tracking Session Viewer */}
+          <Route
+            path="/resq/track/:sessionId"
+            element={
+              <AppShell>
+                <ResqTrackView />
               </AppShell>
             }
           />

@@ -1,0 +1,385 @@
+/* Frosted Glassmorphism Styles for Public/Trusted RESQ Track View */
+
+.trackContainer {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 62px);
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 0%, #f0f9ff 0%, #f8fafc 100%);
+}
+
+.mapPane {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  background: #e2e8f0;
+}
+
+/* Floating Top Bar on Map */
+.floatingTopBar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 9999px;
+  padding: 8px 18px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.floatingTopBarEmergency {
+  border-color: #fca5a5 !important;
+  background: rgba(254, 242, 242, 0.94) !important;
+  box-shadow: 0 8px 28px rgba(220, 38, 38, 0.25) !important;
+}
+
+.floatingLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.personnelBadge {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusPillActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(240, 253, 244, 0.9);
+  border: 1px solid rgba(187, 247, 208, 0.95);
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #15803d;
+  letter-spacing: 0.04em;
+}
+
+.statusPillSos {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 900;
+  color: #b91c1c;
+  letter-spacing: 0.04em;
+  animation: pulseEmergency 1s infinite alternate;
+}
+
+.statusPillEnded {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.activeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.8);
+}
+
+.sosDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc2626;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.9);
+}
+
+@keyframes pulseEmergency {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+
+.floatingRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lastUpdateText {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Right Safety Telemetry Panel */
+.telemetrySidePanel {
+  width: 390px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border-left: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: -4px 0 24px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  gap: 16px;
+  z-index: 100;
+}
+
+/* Emergency Alert Box */
+.emergencyAlertBanner {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1.5px solid #dc2626;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.2);
+}
+
+.emergencyAlertHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.emergencyAlertTitle {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.emergencyAlertDesc {
+  font-size: 12px;
+  color: #7f1d1d;
+  line-height: 1.45;
+}
+
+/* Primary Risk Gauge Card */
+.riskGaugeCard {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.gaugeCircleWrapper {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  flex-shrink: 0;
+}
+
+.gaugeSvg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gaugeScoreNumber {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.gaugeScoreMax {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.riskGaugeInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.riskTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.riskLabelTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.riskStatusBadge {
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.riskSubMetrics {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.metricPill {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.metricKey {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.metricVal {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Info Cards */
+.infoCard {
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.infoLabel {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.infoValue {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e40af;
+}
+
+/* Hazards Section */
+.hazardsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hazardItem {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-left: 3.5px solid #dc2626;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hazardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hazardTitle {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.hazardSeverity {
+  font-size: 10px;
+  font-weight: 800;
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.hazardMeta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Empty / Expired / Error State */
+.centerMessageCard {
+  max-width: 480px;
+  margin: 80px auto;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 24px;
+  padding: 36px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+}
+
+@media (max-width: 768px) {
+  .trackContainer {
+    flex-direction: column;
+  }
+  .telemetrySidePanel {
+    width: 100%;
+    height: 48vh;
+    border-left: none;
+    border-top: 1px solid rgba(226, 232, 240, 0.85);
+  }
+  .mapPane {
+    height: 52vh;
+  }
+}
