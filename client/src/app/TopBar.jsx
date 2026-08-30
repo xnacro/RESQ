@@ -6,6 +6,8 @@ import { Button, TextField, Badge } from '../ui/index.js'
 import { cx } from '../lib/cx.js'
 import { BrandMark } from './BrandMark.jsx'
 import { searchGeocode } from '../services/api.js'
+import { useAuth } from './authContext.jsx'
+import { UserProfileModal } from './UserProfileModal.jsx'
 import styles from './TopBar.module.css'
 
 const NAV_ITEMS = [
@@ -14,6 +16,8 @@ const NAV_ITEMS = [
 ]
 
 export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
+  const { user, isAdmin } = useAuth()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState([])
   const [isOpen, setIsOpen] = useState(false)
@@ -162,6 +166,14 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
               {item.label}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => cx(styles.navLink, isActive && styles.navLinkActive)}
+            >
+              Admin
+            </NavLink>
+          )}
         </nav>
 
         <button type="button" className={styles.iconBtn} aria-label="Notifications" title="Disaster Bulletins">
@@ -169,10 +181,53 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
           <span className={styles.alertDot} />
         </button>
 
+        {/* User Profile Control */}
+        {user && (
+          <button
+            type="button"
+            className={styles.userControl}
+            onClick={() => setIsProfileOpen(true)}
+            title="Open Personnel Command Profile"
+            aria-label="User Profile"
+          >
+            <div className={styles.userAvatarCircle}>
+              {user.profile_photo ? (
+                <img
+                  src={user.profile_photo}
+                  alt={user.name}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                user.name
+                  ? user.name
+                      .split(' ')
+                      .filter(Boolean)
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()
+                  : 'US'
+              )}
+            </div>
+            <div className={styles.userInfoCol}>
+              <span className={styles.userNameHeader}>{user.name}</span>
+              <span className={styles.userUsernameHeader}>
+                {user.username ? (user.username.startsWith('@') ? user.username : `@${user.username}`) : user.role}
+              </span>
+            </div>
+          </button>
+        )}
+
         <Button variant="emergency" icon={Siren} onClick={onSosOpen} className={styles.sos}>
           <span className={styles.sosLabel}>RESQ SOS</span>
         </Button>
       </div>
+
+      {/* Personnel Command Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </header>
   )
 }
