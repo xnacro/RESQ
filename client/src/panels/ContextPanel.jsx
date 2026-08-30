@@ -728,6 +728,11 @@ export function ContextPanel({
                                 <Clock size={11} />
                                 {ev.reported_at ? new Date(ev.reported_at).toLocaleDateString() : 'Recent'}
                               </span>
+                              {ev.raw_extraction?.ml?.confidence && (
+                                <span style={{ fontSize: '10.5px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                  ML {ev.raw_extraction.ml.modelVersion || 'v1'}: {Math.round(ev.raw_extraction.ml.confidence * 100)}%
+                                </span>
+                              )}
                               {ev.news_url && (
                                 <a
                                   href={ev.news_url}

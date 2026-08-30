@@ -681,7 +681,14 @@ export default function AdminView() {
                     <tr key={ev.id}>
                       <td className={styles.td}>
                         <div style={{ fontWeight: 800, color: '#0f172a' }}>{ev.news_title || ev.location_text || `Event #${ev.id}`}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>Source: {ev.source_name || 'Regional Monitor'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>Source: {ev.source_name || 'Regional Monitor'}</span>
+                          {ev.raw_extraction?.ml?.confidence && (
+                            <span style={{ fontSize: '10.5px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                              ML {ev.raw_extraction.ml.modelVersion || 'v1'}: {Math.round(ev.raw_extraction.ml.confidence * 100)}%
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className={styles.td}>
                         <span className={ev.hazard_type === 'FLOOD' ? styles.badgeCritical : styles.badgeHigh}>
