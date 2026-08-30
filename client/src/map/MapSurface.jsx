@@ -3,7 +3,14 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import * as maplibreModule from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { getMapStyle, MAP_MODES } from './mapStyles.js'
-import { RESQ_RISK_COLORS, RESQ_EVENT_COLORS, RESQ_ROUTE_PRESETS } from './resqCartographyTokens.js'
+import {
+  getRiskFillStyle,
+  getRiskOutlineStyle,
+  getSelectedGridFillStyle,
+  getSelectedGridOutlineStyle,
+  getEventCirclePaint,
+  getRouteLayerStyles,
+} from './resqRiskStyle.js'
 import { GUWAHATI_CENTER, DEFAULT_ZOOM } from './constants.js'
 import { useViewportStore, useCursorStore } from './viewportContext.js'
 import { getViewportGrids, getActiveDisasterEvents } from '../services/api.js'
@@ -20,7 +27,7 @@ const PULSE_STYLE_ID = 'resq-pulse-keyframes'
 if (typeof document !== 'undefined' && !document.getElementById(PULSE_STYLE_ID)) {
   const style = document.createElement('style')
   style.id = PULSE_STYLE_ID
-  style.textContent = `@keyframes pulseRing { 0% { transform: scale(0.4); opacity: 0.9; } 100% { transform: scale(2.2); opacity: 0; } }`
+  style.textContent = `@keyframes pulseRing { 0% { transform: scale(0.3); opacity: 0.8; } 100% { transform: scale(2.0); opacity: 0; } }`
   document.head.appendChild(style)
 }
 
@@ -60,7 +67,7 @@ export function MapSurface({
     const firstSymbol = allLayers.find((l) => l.type === 'symbol')
     const beforeId = firstSymbol ? firstSymbol.id : undefined
 
-    // 1. 3D buildings extrusion layer for OpenMapTiles 3D mode
+    // 1. 3D buildings extrusion layer for 3D mode
     if (modeRef.current === MAP_MODES.D3 && map.getSource('openmaptiles') && !map.getLayer('3d-buildings')) {
       map.addLayer(
         {
@@ -93,7 +100,7 @@ export function MapSurface({
       )
     }
 
-    // 2. 500m RESQ Risk Grid Fill and Line Layers (Semi-transparent data layer)
+    // 2. 500m RESQ Risk Grid Fill and Line Layers
     if (!map.getSource('risk-grid-source')) {
       map.addSource('risk-grid-source', {
         type: 'geojson',
@@ -105,17 +112,7 @@ export function MapSurface({
           id: 'risk-grid-fill',
           type: 'fill',
           source: 'risk-grid-source',
-          paint: {
-            'fill-color': [
-              'match',
-              ['get', 'risk_status'],
-              'CRITICAL', RESQ_RISK_COLORS.CRITICAL.fillRgba,
-              'HIGH', RESQ_RISK_COLORS.HIGH.fillRgba,
-              'MODERATE', RESQ_RISK_COLORS.MODERATE.fillRgba,
-              'rgba(0, 0, 0, 0)',
-            ],
-            'fill-opacity': 0.85,
-          },
+          paint: getRiskFillStyle(),
         },
         beforeId,
       )
@@ -125,18 +122,7 @@ export function MapSurface({
           id: 'risk-grid-line',
           type: 'line',
           source: 'risk-grid-source',
-          paint: {
-            'line-color': [
-              'match',
-              ['get', 'risk_status'],
-              'CRITICAL', RESQ_RISK_COLORS.CRITICAL.color,
-              'HIGH', RESQ_RISK_COLORS.HIGH.color,
-              'MODERATE', RESQ_RISK_COLORS.MODERATE.color,
-              'rgba(148, 163, 184, 0.15)',
-            ],
-            'line-width': 1.0,
-            'line-opacity': 0.8,
-          },
+          paint: getRiskOutlineStyle(),
         },
         beforeId,
       )
@@ -168,17 +154,7 @@ export function MapSurface({
           id: 'selected-grid-highlight-fill',
           type: 'fill',
           source: 'selected-grid-highlight-source',
-          paint: {
-            'fill-color': [
-              'match',
-              ['get', 'risk_status'],
-              'CRITICAL', 'rgba(220, 38, 38, 0.35)',
-              'HIGH', 'rgba(234, 88, 12, 0.30)',
-              'MODERATE', 'rgba(245, 158, 11, 0.25)',
-              'rgba(37, 99, 235, 0.20)',
-            ],
-            'fill-opacity': 0.9,
-          },
+          paint: getSelectedGridFillStyle(),
         },
         beforeId,
       )
@@ -188,11 +164,7 @@ export function MapSurface({
           id: 'selected-grid-highlight-line',
           type: 'line',
           source: 'selected-grid-highlight-source',
-          paint: {
-            'line-color': '#2563eb',
-            'line-width': 2.5,
-            'line-opacity': 1,
-          },
+          paint: getSelectedGridOutlineStyle(),
         },
         beforeId,
       )
@@ -200,6 +172,7 @@ export function MapSurface({
 
     // 4. Prepared Safe & Risk Route Segments (Ready for routing phase)
     if (!map.getSource('resq-route-source')) {
+      const routeStyles = getRouteLayerStyles()
       map.addSource('resq-route-source', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -210,11 +183,7 @@ export function MapSurface({
           id: 'resq-route-casing',
           type: 'line',
           source: 'resq-route-source',
-          paint: {
-            'line-color': RESQ_ROUTE_PRESETS.SAFE.casingColor,
-            'line-width': RESQ_ROUTE_PRESETS.SAFE.casingWidth,
-            'line-opacity': 0.9,
-          },
+          paint: routeStyles.casing,
         },
         beforeId,
       )
@@ -224,11 +193,7 @@ export function MapSurface({
           id: 'resq-route-line',
           type: 'line',
           source: 'resq-route-source',
-          paint: {
-            'line-color': RESQ_ROUTE_PRESETS.SAFE.fillColor,
-            'line-width': RESQ_ROUTE_PRESETS.SAFE.fillWidth,
-            'line-opacity': 1,
-          },
+          paint: routeStyles.fill,
         },
         beforeId,
       )
@@ -245,27 +210,7 @@ export function MapSurface({
         id: 'active-events-circle',
         type: 'circle',
         source: 'active-events-source',
-        paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            9, 7,
-            14, 13,
-          ],
-          'circle-color': [
-            'match',
-            ['get', 'hazard_type'],
-            'FLASH_FLOOD', RESQ_EVENT_COLORS.FLASH_FLOOD,
-            'FLOOD', RESQ_EVENT_COLORS.FLOOD,
-            'LANDSLIDE', RESQ_EVENT_COLORS.LANDSLIDE,
-            'EARTHQUAKE', RESQ_EVENT_COLORS.EARTHQUAKE,
-            'BRIDGE_CLOSURE', RESQ_EVENT_COLORS.BRIDGE_CLOSURE,
-            'ROAD_BLOCKAGE', RESQ_EVENT_COLORS.ROAD_BLOCKAGE,
-            RESQ_EVENT_COLORS.DEFAULT,
-          ],
-          'circle-stroke-width': 2.5,
-          'circle-stroke-color': '#ffffff',
-          'circle-opacity': 0.95,
-        },
+        paint: getEventCirclePaint(),
       })
 
       map.on('click', 'active-events-circle', (e) => {
@@ -325,12 +270,12 @@ export function MapSurface({
         type: 'circle',
         source: 'user-location-source',
         paint: {
-          'circle-radius': 22,
+          'circle-radius': 18,
           'circle-color': '#2563eb',
-          'circle-opacity': 0.25,
+          'circle-opacity': 0.2,
           'circle-stroke-width': 1.5,
           'circle-stroke-color': '#2563eb',
-          'circle-stroke-opacity': 0.6,
+          'circle-stroke-opacity': 0.5,
         },
       })
 
@@ -339,7 +284,7 @@ export function MapSurface({
         type: 'circle',
         source: 'user-location-source',
         paint: {
-          'circle-radius': 8,
+          'circle-radius': 6.5,
           'circle-color': '#2563eb',
           'circle-stroke-width': 2.5,
           'circle-stroke-color': '#ffffff',
@@ -427,10 +372,10 @@ export function MapSurface({
         const el = document.createElement('div')
         el.className = 'resq-user-location-marker'
         el.innerHTML = `
-          <div style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
-            <div style="position:absolute; width:44px; height:44px; border-radius:50%; background:rgba(37,99,235,0.25); animation:pulseRing 2s infinite ease-out;"></div>
-            <div style="position:relative; width:20px; height:20px; border-radius:50%; background:#2563eb; border:3px solid #ffffff; box-shadow:0 2px 10px rgba(0,0,0,0.3); z-index:2; display:flex; align-items:center; justify-content:center;">
-              <div style="width:5px; height:5px; border-radius:50%; background:#ffffff;"></div>
+          <div style="position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
+            <div style="position:absolute; width:36px; height:36px; border-radius:50%; background:rgba(37,99,235,0.22); animation:pulseRing 2.2s infinite ease-out;"></div>
+            <div style="position:relative; width:14px; height:14px; border-radius:50%; background:#2563eb; border:2.5px solid #ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.25); z-index:2; display:flex; align-items:center; justify-content:center;">
+              <div style="width:3px; height:3px; border-radius:50%; background:#ffffff;"></div>
             </div>
           </div>
         `
