@@ -693,7 +693,7 @@ export function LoginView({ initialMode = 'login' }) {
                           id="reg-name"
                           type="text"
                           className={`${styles.input} ${fieldErrors.fullName ? styles.inputError : ''}`}
-                          placeholder="e.g. Rahul Kumar"
+                          placeholder="e.g. Prince"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                         />
