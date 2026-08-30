@@ -1,5 +1,5 @@
 // Reusable data-driven MapLibre style expressions for RESQ risk layers and event overlays
-import { RESQ_RISK_COLORS, RESQ_EVENT_COLORS, RESQ_ROUTE_PRESETS } from './resqCartographyTokens.js'
+import { RESQ_RISK_COLORS, RESQ_EVENT_COLORS } from './resqCartographyTokens.js'
 
 // Returns data-driven fill paint expression for 500m risk grids
 export function getRiskFillStyle() {

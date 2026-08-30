@@ -3,6 +3,7 @@
 import express from "express";
 import { calculateRoute } from "../services/routing/valhallaService.js";
 import { checkValhallaHealth } from "../services/routing/valhallaHealthService.js";
+import { evaluateRouteRisk } from "../services/routing/routeRiskService.js";
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.get("/health", async (req, res) => {
   }
 });
 
-// Compute physical route between origin and destination
+// Compute physical route and evaluate 500m grid risk profile
 router.post("/", async (req, res) => {
   try {
     const {
@@ -55,6 +56,39 @@ router.post("/", async (req, res) => {
       units,
       alternatives,
     });
+
+    // Enrich primary route with PostGIS 500m grid risk evaluation
+    if (routeResult.success && routeResult.route?.geometry) {
+      try {
+        const riskEval = await evaluateRouteRisk(routeResult.route.geometry);
+        routeResult.route.riskScore = riskEval.riskSnapshot.meanRisk;
+        routeResult.route.riskStatus = riskEval.riskSnapshot.routeStatus;
+        routeResult.route.isBlocked = riskEval.riskSnapshot.isBlocked;
+        routeResult.route.riskSnapshot = riskEval.riskSnapshot;
+        routeResult.route.hazards = riskEval.hazards;
+        routeResult.route.routeGridIds = riskEval.routeGridIds;
+        routeResult.route.totalGrids = riskEval.totalGrids;
+      } catch (riskErr) {
+        console.warn("Route risk evaluation warning:", riskErr.message);
+      }
+    }
+
+    // Enrich alternative routes if returned
+    if (routeResult.success && Array.isArray(routeResult.alternatives)) {
+      for (const alt of routeResult.alternatives) {
+        if (alt.geometry) {
+          try {
+            const altRisk = await evaluateRouteRisk(alt.geometry);
+            alt.riskScore = altRisk.riskSnapshot.meanRisk;
+            alt.riskStatus = altRisk.riskSnapshot.routeStatus;
+            alt.isBlocked = altRisk.riskSnapshot.isBlocked;
+            alt.riskSnapshot = altRisk.riskSnapshot;
+          } catch (e) {
+            console.warn("Alt risk evaluation warning:", e.message);
+          }
+        }
+      }
+    }
 
     return res.status(200).json(routeResult);
   } catch (error) {
