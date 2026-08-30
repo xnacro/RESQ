@@ -503,7 +503,7 @@ export function MapSurface({
       zoom: DEFAULT_ZOOM,
       minZoom: ZOOM_RANGE.min,
       maxZoom: ZOOM_RANGE.max,
-      attributionControl: { compact: true },
+      attributionControl: false,
       maxPitch: 85,
     })
 

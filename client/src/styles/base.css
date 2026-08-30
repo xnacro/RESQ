@@ -199,3 +199,13 @@ kbd {
     scroll-behavior: auto !important;
   }
 }
+
+/* Hide bottom attribution overlay across all surface views */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib-button,
+.maplibregl-compact {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
