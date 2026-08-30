@@ -302,7 +302,62 @@ export function useResqMode() {
     [sessionId, session]
   )
 
-  // 7. Start a new RESQ Safety Session
+  // 7. Trigger Emergency SOS Action
+  const triggerSos = useCallback(
+    async ({ emergencyType = 'GENERAL_DISTRESS', notes = '' } = {}) => {
+      if (!sessionId) return
+
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const res = await dispatchResqSessionSos({
+          sessionId,
+          emergencyType,
+          notes,
+        })
+        if (res && res.session) {
+          setSession(res.session)
+        }
+        return res
+      } catch (err) {
+        setError(err.message || 'Failed to dispatch SOS')
+        throw err
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [sessionId]
+  )
+
+  // 8. Cancel / Resolve Emergency SOS Action
+  const cancelSos = useCallback(
+    async (reason = 'Resolved') => {
+      if (!sessionId) return
+
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const res = await cancelResqSessionSos({
+          sessionId,
+          reason,
+        })
+        if (res && res.session) {
+          setSession(res.session)
+        }
+        return res
+      } catch (err) {
+        setError(err.message || 'Failed to cancel SOS')
+        throw err
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [sessionId]
+  )
+
+  // 9. Start a new RESQ Safety Session
   const startSession = useCallback(
     async ({ safetyTimerMinutes = 30, trustedContacts = [] } = {}) => {
       setIsLoading(true)
@@ -340,7 +395,7 @@ export function useResqMode() {
     []
   )
 
-  // 8. Stop active RESQ Safety Session
+  // 10. Stop active RESQ Safety Session
   const stopSession = useCallback(async () => {
     if (!sessionId) return
 
@@ -383,6 +438,7 @@ export function useResqMode() {
 
   const isTimerWarning = timeRemainingMs > 0 && timeRemainingMs <= 5 * 60 * 1000
   const isTimerExpired = isActive && timeRemainingMs === 0 && session?.timer_expires_at
+  const isSosActive = session?.status === 'SOS' || Boolean(session?.emergency_alert_id)
 
   return {
     session,
@@ -401,8 +457,11 @@ export function useResqMode() {
     isTimerWarning,
     isTimerExpired,
     isCheckInPending,
+    isSosActive,
     checkIn,
     extendTimer,
+    triggerSos,
+    cancelSos,
     startSession,
     stopSession,
     setSession,

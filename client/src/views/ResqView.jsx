@@ -1,4 +1,4 @@
-// RESQ Mode Main Operational View for Live Disaster Safety, GPS Tracking, Risk, and Safety Timer
+// RESQ Mode Main Operational View for Live Disaster Safety, GPS Tracking, Risk, Safety Timer, and Emergency SOS
 import { useState } from 'react'
 import {
   Shield,
@@ -14,15 +14,21 @@ import {
   X,
   CheckCircle2,
   Hourglass,
+  Siren,
 } from 'lucide-react'
 import { MapSurface } from '../map/MapSurface.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
 import { useResqMode } from '../hooks/useResqMode.js'
-import { useAuth } from '../app/authContext.jsx'
 import styles from './ResqView.module.css'
 
+const SOS_CATEGORIES = [
+  { id: 'FLOOD_TRAPPED', label: '🌊 Flood Trapped' },
+  { id: 'MEDICAL_EMERGENCY', label: '🚑 Medical Emergency' },
+  { id: 'ROAD_COLLAPSE', label: '🚧 Road / Bridge Collapse' },
+  { id: 'GENERAL_DISTRESS', label: '🚨 General Distress' },
+]
+
 export function ResqView() {
-  const { user } = useAuth()
   const {
     session,
     isActive,
@@ -38,8 +44,11 @@ export function ResqView() {
     isTimerWarning,
     isTimerExpired,
     isCheckInPending,
+    isSosActive,
     checkIn,
     extendTimer,
+    triggerSos,
+    cancelSos,
     startSession,
     stopSession,
   } = useResqMode()
@@ -47,6 +56,9 @@ export function ResqView() {
   const [selectedTimer, setSelectedTimer] = useState(30)
   const [copied, setCopied] = useState(false)
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [isSosModalOpen, setIsSosModalOpen] = useState(false)
+  const [selectedSosCategory, setSelectedSosCategory] = useState('FLOOD_TRAPPED')
+  const [sosNotes, setSosNotes] = useState('')
   const [actionError, setActionError] = useState('')
   const [checkInSuccess, setCheckInSuccess] = useState(false)
 
@@ -91,6 +103,28 @@ export function ResqView() {
     }
   }
 
+  const handleDispatchSos = async () => {
+    setActionError('')
+    try {
+      await triggerSos({
+        emergencyType: selectedSosCategory,
+        notes: sosNotes,
+      })
+      setIsSosModalOpen(false)
+    } catch (err) {
+      setActionError(err.message || 'Failed to dispatch SOS')
+    }
+  }
+
+  const handleCancelSos = async () => {
+    setActionError('')
+    try {
+      await cancelSos('Resolved safely by operator')
+    } catch (err) {
+      setActionError(err.message || 'Failed to cancel SOS')
+    }
+  }
+
   const handleCopyLink = () => {
     if (!session || !session.session_id) return
     const shareUrl = `${window.location.origin}/resq/track/${session.session_id}`
@@ -105,9 +139,9 @@ export function ResqView() {
 
   // Calculate circular SVG gauge progress
   const score = riskData?.riskScore ?? (session?.risk_score || 24.8)
-  const status = riskData?.riskStatus ?? (session?.risk_status || 'LOW')
+  const status = isSosActive ? 'CRITICAL' : riskData?.riskStatus ?? (session?.risk_status || 'LOW')
   const staticVal = riskData?.staticRisk ?? (session?.static_risk || 24.8)
-  const dynamicVal = riskData?.dynamicRisk ?? (session?.dynamic_risk || 0)
+  const dynamicVal = isSosActive ? 100 : riskData?.dynamicRisk ?? (session?.dynamic_risk || 0)
   const confidence = Math.round((riskData?.riskConfidence ?? 0.95) * 100)
 
   const radius = 34
@@ -119,7 +153,7 @@ export function ResqView() {
   let badgeBorder = '#bbf7d0'
   let badgeColor = '#15803d'
 
-  if (status === 'CRITICAL' || score >= 70) {
+  if (isSosActive || status === 'CRITICAL' || score >= 70) {
     gaugeColor = '#dc2626'
     badgeBg = '#fef2f2'
     badgeBorder = '#fecaca'
@@ -232,14 +266,14 @@ export function ResqView() {
         <div className={styles.activeOperationalLayout}>
           {/* Main Map Pane */}
           <div className={styles.activeMapPane}>
-            <div className={styles.mapFloatingBar}>
+            <div className={`${styles.mapFloatingBar} ${isSosActive ? styles.mapFloatingBarEmergency : ''}`}>
               <div className={styles.floatingLeft}>
-                <div className={styles.activeStatusPill}>
-                  <span className={styles.activeDot} />
-                  <span>RESQ ACTIVE</span>
+                <div className={isSosActive ? styles.sosStatusPill : styles.activeStatusPill}>
+                  <span className={isSosActive ? styles.sosDot : styles.activeDot} />
+                  <span>{isSosActive ? '🚨 SOS ACTIVE' : 'RESQ ACTIVE'}</span>
                 </div>
                 <div className={styles.areaBadge}>
-                  <MapPin size={14} style={{ color: '#2563eb' }} />
+                  <MapPin size={14} style={{ color: isSosActive ? '#dc2626' : '#2563eb' }} />
                   <span>{localityText}</span>
                 </div>
               </div>
@@ -304,8 +338,43 @@ export function ResqView() {
               </div>
             )}
 
+            {/* Active SOS Banner / Trigger */}
+            {isSosActive ? (
+              <div className={styles.emergencySosCard}>
+                <div className={styles.emergencySosHeader}>
+                  <div className={styles.emergencySosTitle}>
+                    <Siren size={18} />
+                    <span>EMERGENCY SOS ACTIVE</span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: '6px' }}>
+                    BROADCASTING
+                  </span>
+                </div>
+                <div className={styles.emergencySosSubtext}>
+                  Live GPS telemetry, 500m grid hazard index, and personnel identity have been escalated to regional command response.
+                </div>
+                <button
+                  type="button"
+                  className={styles.cancelSosBtn}
+                  onClick={handleCancelSos}
+                  disabled={isLoading}
+                >
+                  Cancel SOS • I am Safe
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={styles.sosDispatchBtn}
+                onClick={() => setIsSosModalOpen(true)}
+              >
+                <Siren size={18} />
+                <span>DISPATCH EMERGENCY SOS</span>
+              </button>
+            )}
+
             {/* Risk Escalation Alert Banner */}
-            {riskAlert && (
+            {riskAlert && !isSosActive && (
               <div className={styles.riskAlertBanner}>
                 <Flame size={20} className={styles.alertIcon} />
                 <div className={styles.alertContent}>
@@ -480,6 +549,112 @@ export function ResqView() {
               >
                 {copied ? <Check size={13} /> : <Copy size={13} />}
                 <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EMERGENCY SOS DISPATCH CONFIRMATION MODAL */}
+      {isSosModalOpen && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.sosModalCard}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Siren size={24} style={{ color: '#dc2626' }} />
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#0f172a' }}>
+                  Dispatch Emergency SOS
+                </h3>
+              </div>
+              <button
+                type="button"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                onClick={() => setIsSosModalOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>
+              This broadcasts an immediate critical alert to your emergency monitors with your live coordinates, 500m grid cell, and disaster risk breakdown.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                Select Emergency Type
+              </span>
+              <div className={styles.sosCategoryGrid}>
+                {SOS_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`${styles.sosCategoryBtn} ${selectedSosCategory === cat.id ? styles.sosCategoryBtnActive : ''}`}
+                    onClick={() => setSelectedSosCategory(cat.id)}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                Additional Notes (Optional)
+              </span>
+              <input
+                type="text"
+                value={sosNotes}
+                onChange={(e) => setSosNotes(e.target.value)}
+                placeholder="e.g. Trapped on second floor, water rising..."
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  padding: '0 12px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #e2e8f0',
+                  fontSize: '13px',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: '#f1f5f9',
+                  border: 'none',
+                  color: '#475569',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setIsSosModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{
+                  flex: 2,
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 900,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                }}
+                onClick={handleDispatchSos}
+                disabled={isLoading}
+              >
+                Confirm Dispatch SOS
               </button>
             </div>
           </div>

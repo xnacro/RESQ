@@ -1,5 +1,6 @@
-// RESQ Mode Session Lifecycle, Live Risk Monitoring, and Safety Timer API Routes
+// RESQ Mode Session Lifecycle, Live Risk Monitoring, Safety Timer, and Emergency SOS API Routes
 import express from "express";
+import crypto from "crypto";
 import pool from "../config/db.js";
 import { authenticate } from "../middleware/authMiddleware.js";
 import {
@@ -338,7 +339,136 @@ router.post("/timer/update", authenticate, async (req, res) => {
   }
 });
 
-// 5. Stop / Deactivate an active RESQ Mode Session
+// 5. Trigger Emergency SOS Dispatch
+router.post("/sos", authenticate, async (req, res) => {
+  try {
+    const { sessionId, emergencyType = "GENERAL_DISTRESS", notes = "" } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID is required to trigger SOS",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized to trigger SOS for this session",
+      });
+    }
+
+    const emergencyAlertId = crypto.randomUUID();
+    const now = new Date();
+
+    const emergencyMeta = {
+      ...(session.metadata || {}),
+      emergency: {
+        alertId: emergencyAlertId,
+        emergencyType,
+        notes,
+        triggeredAt: now.toISOString(),
+        triggeredBy: req.user.name || "Personnel",
+        lat: session.current_lat,
+        lon: session.current_lon,
+        gridId: session.current_grid_id,
+        district: session.current_district,
+        riskScore: session.risk_score,
+      },
+    };
+
+    const updates = {
+      status: "SOS",
+      risk_status: "CRITICAL",
+      emergency_alert_id: emergencyAlertId,
+      metadata: emergencyMeta,
+    };
+
+    const updatedSession = await updateResqSession(sessionId, updates);
+
+    return res.status(200).json({
+      success: true,
+      message: "EMERGENCY SOS DISPATCHED SUCCESSFULLY",
+      alertId: emergencyAlertId,
+      session: updatedSession,
+    });
+  } catch (err) {
+    console.error("SOS dispatch error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error dispatching emergency SOS",
+    });
+  }
+});
+
+// 6. Cancel / Resolve Active Emergency SOS
+router.post("/sos/cancel", authenticate, async (req, res) => {
+  try {
+    const { sessionId, reason = "False alarm / Resolved safely" } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID is required to cancel SOS",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized to cancel SOS for this session",
+      });
+    }
+
+    const now = new Date();
+    const updatedMeta = {
+      ...(session.metadata || {}),
+      emergency_resolved_at: now.toISOString(),
+      emergency_cancel_reason: reason,
+    };
+
+    const updates = {
+      status: "ACTIVE",
+      emergency_alert_id: null,
+      metadata: updatedMeta,
+    };
+
+    const updatedSession = await updateResqSession(sessionId, updates);
+
+    return res.status(200).json({
+      success: true,
+      message: "Emergency SOS cancelled successfully",
+      sessionId,
+      session: updatedSession,
+    });
+  } catch (err) {
+    console.error("SOS cancel error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error cancelling emergency SOS",
+    });
+  }
+});
+
+// 7. Stop / Deactivate an active RESQ Mode Session
 router.post("/stop", authenticate, async (req, res) => {
   try {
     const { sessionId } = req.body;
@@ -383,7 +513,7 @@ router.post("/stop", authenticate, async (req, res) => {
   }
 });
 
-// 6. Get Active Session for the Authenticated User
+// 8. Get Active Session for the Authenticated User
 router.get("/active/me", authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -412,7 +542,7 @@ router.get("/active/me", authenticate, async (req, res) => {
   }
 });
 
-// 7. Read Session Details by Session ID
+// 9. Read Session Details by Session ID
 router.get("/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;

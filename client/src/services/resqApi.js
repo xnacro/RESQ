@@ -168,6 +168,50 @@ export async function updateResqSessionTimer({ sessionId, safetyTimerMinutes }) 
   }
 }
 
+// 8. Trigger Emergency SOS Dispatch
+export async function dispatchResqSessionSos({
+  sessionId,
+  emergencyType = 'GENERAL_DISTRESS',
+  notes = '',
+}) {
+  try {
+    const res = await fetch(`${API_BASE}/sos`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ sessionId, emergencyType, notes }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to dispatch SOS')
+    }
+    return data
+  } catch (err) {
+    console.error('dispatchResqSessionSos error:', err.message)
+    throw err
+  }
+}
+
+// 9. Cancel / Resolve Active Emergency SOS
+export async function cancelResqSessionSos({ sessionId, reason = 'Resolved' }) {
+  try {
+    const res = await fetch(`${API_BASE}/sos/cancel`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ sessionId, reason }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to cancel SOS')
+    }
+    return data
+  } catch (err) {
+    console.error('cancelResqSessionSos error:', err.message)
+    throw err
+  }
+}
+
 export default {
   startResqSession,
   stopResqSession,
@@ -176,4 +220,6 @@ export default {
   updateResqSessionLocation,
   checkInResqSession,
   updateResqSessionTimer,
+  dispatchResqSessionSos,
+  cancelResqSessionSos,
 }
