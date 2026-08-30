@@ -1,139 +1,357 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { cx } from '../lib/cx.js'
-import { Graticule } from './Graticule.jsx'
-import { useCursorStore, useMapViewport } from './viewportContext.js'
+// MapLibre WebGL map substrate for RESQ disaster intelligence
+import { useEffect, useRef, useState, useCallback } from 'react'
+import * as maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { getMapStyle, MAP_MODES } from './mapStyles.js'
+import { GUWAHATI_CENTER, DEFAULT_ZOOM } from './constants.js'
+import { useMapViewport, useCursorStore } from './viewportContext.js'
+import { getViewportGrids, getActiveDisasterEvents } from '../services/api.js'
 import styles from './MapSurface.module.css'
 
-const KEY_PAN_STEP = 80
-const WHEEL_ZOOM_RATE = 0.0022
-
-// Full bleed map substrate. The real map service mounts into the node exposed by
-// mountRef, and the placeholder hides itself once that node has a child.
-export function MapSurface({ children, className, onBackgroundClick, mountRef }) {
-  const containerRef = useRef(null)
-  const internalMountRef = useRef(null)
-  const resolvedMountRef = mountRef || internalMountRef
-  const dragRef = useRef(null)
-  const [dragging, setDragging] = useState(false)
-  const { size, setSize, panBy, zoomBy, projection } = useMapViewport()
+export function MapSurface({
+  children,
+  mode = MAP_MODES.NORMAL,
+  onMapClick,
+  onGridSelect,
+  onEventSelect,
+  onMapReady,
+  selectedLocation = null,
+  selectedGridId = null,
+}) {
+  const mapContainerRef = useRef(null)
+  const mapRef = useRef(null)
+  const markerRef = useRef(null)
+  const popupRef = useRef(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const { setCenter, setZoom } = useMapViewport()
   const cursorStore = useCursorStore()
 
-  useEffect(() => {
-    const element = containerRef.current
-    if (!element) return undefined
+  // Helper to attach risk grid & disaster event layers to MapLibre
+  const setupLayers = useCallback((map) => {
+    // 1. Add 500m Risk Grid Source & Layers
+    if (!map.getSource('risk-grid-source')) {
+      map.addSource('risk-grid-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
 
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      setSize({ width: Math.round(width), height: Math.round(height) })
-    })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [setSize])
+      map.addLayer({
+        id: 'risk-grid-fill',
+        type: 'fill',
+        source: 'risk-grid-source',
+        paint: {
+          'fill-color': [
+            'match',
+            ['get', 'risk_status'],
+            'CRITICAL', 'rgba(220, 38, 38, 0.55)',
+            'HIGH', 'rgba(234, 88, 12, 0.45)',
+            'MODERATE', 'rgba(217, 119, 6, 0.35)',
+            'rgba(22, 163, 74, 0.25)',
+          ],
+          'fill-opacity': 0.85,
+        },
+      })
 
-  const anchorFor = useCallback(
-    (event) => {
-      const rect = containerRef.current?.getBoundingClientRect()
-      if (!rect) return null
-      return { x: event.clientX - rect.left, y: event.clientY - rect.top, size }
-    },
-    [size],
-  )
+      map.addLayer({
+        id: 'risk-grid-line',
+        type: 'line',
+        source: 'risk-grid-source',
+        paint: {
+          'line-color': [
+            'match',
+            ['get', 'risk_status'],
+            'CRITICAL', '#dc2626',
+            'HIGH', '#ea580c',
+            'MODERATE', '#d97706',
+            '#16a34a',
+          ],
+          'line-width': 1.2,
+          'line-opacity': 0.9,
+        },
+      })
 
-  useEffect(() => {
-    const element = containerRef.current
-    if (!element) return undefined
+      // Grid cell click interaction
+      map.on('click', 'risk-grid-fill', (e) => {
+        if (e.features && e.features.length > 0) {
+          const props = e.features[0].properties
+          if (onGridSelect) onGridSelect(props)
+        }
+      })
 
-    const handleWheel = (event) => {
-      event.preventDefault()
-      const anchor = anchorFor(event)
-      const delta = -event.deltaY * WHEEL_ZOOM_RATE * (event.ctrlKey ? 4 : 1)
-      zoomBy(delta, anchor)
+      map.on('mouseenter', 'risk-grid-fill', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+
+      map.on('mouseleave', 'risk-grid-fill', () => {
+        map.getCanvas().style.cursor = ''
+      })
     }
 
-    element.addEventListener('wheel', handleWheel, { passive: false })
-    return () => element.removeEventListener('wheel', handleWheel)
-  }, [anchorFor, zoomBy])
+    // 2. Add Active Disaster Events Source & Layers
+    if (!map.getSource('active-events-source')) {
+      map.addSource('active-events-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
 
-  const handlePointerDown = (event) => {
-    if (event.button !== 0) return
-    dragRef.current = { x: event.clientX, y: event.clientY, moved: 0 }
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setDragging(true)
-  }
+      map.addLayer({
+        id: 'active-events-circle',
+        type: 'circle',
+        source: 'active-events-source',
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            9, 8,
+            14, 14,
+          ],
+          'circle-color': [
+            'match',
+            ['get', 'hazard_type'],
+            'FLASH_FLOOD', '#2563eb',
+            'FLOOD', '#0284c7',
+            'LANDSLIDE', '#b45309',
+            'EARTHQUAKE', '#7c3aed',
+            '#dc2626',
+          ],
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#ffffff',
+          'circle-opacity': 0.9,
+        },
+      })
 
-  const handlePointerMove = (event) => {
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (rect && projection.width) {
-      const [lon, lat] = projection.unproject(event.clientX - rect.left, event.clientY - rect.top)
-      cursorStore.set({ lon, lat })
+      // Event marker click popup
+      map.on('click', 'active-events-circle', (e) => {
+        if (e.features && e.features.length > 0) {
+          const feat = e.features[0]
+          const props = feat.properties
+          const coords = feat.geometry.coordinates
+
+          if (popupRef.current) popupRef.current.remove()
+
+          const popupHtml = `
+            <div style="font-family: var(--font-sans); padding: 4px; min-width: 200px;">
+              <div style="font-size: 11px; font-weight: 700; color: #dc2626; text-transform: uppercase; margin-bottom: 2px;">
+                🚨 ${props.event_type || 'DISASTER EVENT'}
+              </div>
+              <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">
+                ${props.news_title || props.location_text || 'Reported Hazard'}
+              </div>
+              <div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">
+                Severity: <b>${props.severity || 0}/100</b> | Confidence: <b>${Math.round((props.confidence || 0.9) * 100)}%</b>
+              </div>
+              <div style="font-size: 10px; color: #94a3b8;">
+                Source: ${props.source_name || 'Verified Media'}
+              </div>
+            </div>
+          `
+
+          popupRef.current = new maplibregl.Popup({ offset: 12 })
+            .setLngLat(coords)
+            .setHTML(popupHtml)
+            .addTo(map)
+
+          if (onEventSelect) onEventSelect(props)
+        }
+      })
+
+      map.on('mouseenter', 'active-events-circle', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+
+      map.on('mouseleave', 'active-events-circle', () => {
+        map.getCanvas().style.cursor = ''
+      })
     }
+  }, [onGridSelect, onEventSelect])
 
-    const drag = dragRef.current
-    if (!drag) return
-    const dx = event.clientX - drag.x
-    const dy = event.clientY - drag.y
-    drag.moved += Math.abs(dx) + Math.abs(dy)
-    drag.x = event.clientX
-    drag.y = event.clientY
-    panBy(dx, dy)
-  }
+  // Helper to fetch visible grid cells for the current viewport
+  const refreshViewportGrids = useCallback(async () => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
 
-  const handlePointerUp = (event) => {
-    const drag = dragRef.current
-    dragRef.current = null
-    setDragging(false)
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-    if (drag && drag.moved < 4 && onBackgroundClick) onBackgroundClick(event)
-  }
+    const z = map.getZoom()
+    const source = map.getSource('risk-grid-source')
+    if (!source) return
 
-  const handleKeyDown = (event) => {
-    const map = {
-      ArrowUp: [0, KEY_PAN_STEP],
-      ArrowDown: [0, -KEY_PAN_STEP],
-      ArrowLeft: [KEY_PAN_STEP, 0],
-      ArrowRight: [-KEY_PAN_STEP, 0],
-    }
-    if (map[event.key]) {
-      event.preventDefault()
-      panBy(...map[event.key])
+    // Only load 500m cells when zoomed in sufficiently to avoid heavy DOM/network
+    if (z < 10.5) {
+      source.setData({ type: 'FeatureCollection', features: [] })
       return
     }
-    if (event.key === '+' || event.key === '=') {
-      event.preventDefault()
-      zoomBy(0.5, null)
+
+    const bounds = map.getBounds()
+    const w = bounds.getWest()
+    const s = bounds.getSouth()
+    const e = bounds.getEast()
+    const n = bounds.getNorth()
+
+    try {
+      const geoJson = await getViewportGrids(w, s, e, n, 400)
+      if (map.getSource('risk-grid-source')) {
+        map.getSource('risk-grid-source').setData(geoJson)
+      }
+    } catch (err) {
+      console.error('Failed to refresh viewport grids:', err.message)
     }
-    if (event.key === '-' || event.key === '_') {
-      event.preventDefault()
-      zoomBy(-0.5, null)
+  }, [])
+
+  // Helper to fetch and render active disaster events
+  const refreshActiveEvents = useCallback(async () => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+
+    const source = map.getSource('active-events-source')
+    if (!source) return
+
+    try {
+      const events = await getActiveDisasterEvents()
+      const geoJson = {
+        type: 'FeatureCollection',
+        features: events
+          .filter((ev) => ev.longitude && ev.latitude)
+          .map((ev) => ({
+            type: 'Feature',
+            id: ev.id,
+            geometry: {
+              type: 'Point',
+              coordinates: [parseFloat(ev.longitude), parseFloat(ev.latitude)],
+            },
+            properties: {
+              ...ev,
+              hazard_type: ev.hazard_type || ev.event_type,
+            },
+          })),
+      }
+      source.setData(geoJson)
+    } catch (err) {
+      console.error('Failed to load active events:', err.message)
     }
-  }
+  }, [])
+
+  // 1. Initialize MapLibre instance
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+
+    const initialStyle = getMapStyle(mode)
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: initialStyle,
+      center: GUWAHATI_CENTER,
+      zoom: DEFAULT_ZOOM,
+      pitch: mode === MAP_MODES.D3 ? 55 : 0,
+      bearing: mode === MAP_MODES.D3 ? -15 : 0,
+      attributionControl: false,
+      dragRotate: true,
+      touchPitch: true,
+    })
+
+    map.on('load', () => {
+      setMapLoaded(true)
+      setupLayers(map)
+      refreshViewportGrids()
+      refreshActiveEvents()
+      if (onMapReady) onMapReady(map)
+    })
+
+    map.on('move', () => {
+      const c = map.getCenter()
+      const z = map.getZoom()
+      setCenter([c.lng, c.lat])
+      setZoom(z)
+    })
+
+    map.on('moveend', () => {
+      refreshViewportGrids()
+    })
+
+    map.on('mousemove', (e) => {
+      cursorStore.set({ lon: e.lngLat.lng, lat: e.lngLat.lat })
+    })
+
+    map.on('mouseout', () => {
+      cursorStore.set(null)
+    })
+
+    map.on('click', (e) => {
+      if (onMapClick) {
+        onMapClick({
+          lat: e.lngLat.lat,
+          lon: e.lngLat.lng,
+          point: e.point,
+        })
+      }
+    })
+
+    mapRef.current = map
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+    }
+  }, [setupLayers, refreshViewportGrids, refreshActiveEvents])
+
+  // 2. Handle Map Mode Changes (Normal, 3D, Terrain, Satellite, Hybrid)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    const nextStyle = getMapStyle(mode)
+    map.setStyle(nextStyle)
+
+    // Re-attach data layers once new style loads
+    map.once('style.load', () => {
+      setupLayers(map)
+      refreshViewportGrids()
+      refreshActiveEvents()
+    })
+
+    if (mode === MAP_MODES.D3) {
+      map.easeTo({ pitch: 55, bearing: -15, duration: 800 })
+    } else {
+      map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
+    }
+  }, [mode, mapLoaded, setupLayers, refreshViewportGrids, refreshActiveEvents])
+
+  // 3. Render Selected Location Marker
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
+      if (!markerRef.current) {
+        const el = document.createElement('div')
+        el.className = styles.locationPin
+        el.innerHTML = `
+          <div class="${styles.pinPulse}"></div>
+          <div class="${styles.pinCore}"></div>
+        `
+        markerRef.current = new maplibregl.Marker({ element: el })
+          .setLngLat([selectedLocation.lon, selectedLocation.lat])
+          .addTo(map)
+      } else {
+        markerRef.current.setLngLat([selectedLocation.lon, selectedLocation.lat])
+      }
+
+      map.flyTo({
+        center: [selectedLocation.lon, selectedLocation.lat],
+        zoom: Math.max(map.getZoom(), 13),
+        speed: 1.2,
+        curve: 1.4,
+        essential: true,
+      })
+    } else if (markerRef.current) {
+      markerRef.current.remove()
+      markerRef.current = null
+    }
+  }, [selectedLocation, mapLoaded])
 
   return (
-    <div
-      ref={containerRef}
-      className={cx(styles.surface, dragging && styles.dragging, className)}
-      role="application"
-      aria-label="resQ risk map"
-      tabIndex={0}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onPointerLeave={() => cursorStore.set(null)}
-      onKeyDown={handleKeyDown}
-      onDoubleClick={(event) => zoomBy(1, anchorFor(event))}
-    >
-      <div ref={resolvedMountRef} className={styles.mount} data-map-mount="true" />
-
-      <div className={styles.basemap} aria-hidden="true">
-        <Graticule />
-      </div>
-
-      <div className={styles.overlays}>{children}</div>
-
-      <div className={styles.vignette} aria-hidden="true" />
+    <div className={styles.wrapper}>
+      <div ref={mapContainerRef} className={styles.mapContainer} />
+      {children}
     </div>
   )
 }
+
+export default MapSurface

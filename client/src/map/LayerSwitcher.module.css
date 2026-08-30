@@ -1,0 +1,51 @@
+/* LayerSwitcher CSS Module */
+
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-pill);
+  box-shadow: var(--chrome-shadow);
+  z-index: var(--z-map-chrome);
+}
+
+.layerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+  white-space: nowrap;
+}
+
+.layerBtn:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.layerBtnActive {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  font-weight: var(--fw-bold);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+@media (max-width: 640px) {
+  .label {
+    display: none;
+  }
+  .layerBtn {
+    padding: 8px 10px;
+  }
+}

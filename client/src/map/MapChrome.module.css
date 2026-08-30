@@ -1,85 +1,174 @@
-.rightRail {
+/* MapChrome CSS Module */
+
+.chromeOverlay {
   position: absolute;
-  right: var(--inset);
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
   z-index: var(--z-map-chrome);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
 }
 
-.zoomStack {
+.topLeftPill {
+  position: absolute;
+  top: var(--sp-4);
+  left: var(--sp-4);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--chrome-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-pill);
+  box-shadow: var(--chrome-shadow);
+  pointer-events: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.pillIcon {
+  color: var(--accent);
+}
+
+.pillBold {
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.pillSep {
+  color: var(--line-strong);
+}
+
+.pillText {
+  color: var(--text-muted);
+}
+
+.rightRail {
+  position: absolute;
+  right: var(--sp-4);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.verticalStack {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: var(--sp-1);
-  background: var(--panel-bg);
-  backdrop-filter: blur(var(--panel-blur));
-  -webkit-backdrop-filter: blur(var(--panel-blur));
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-panel);
+  align-items: center;
+  background: var(--chrome-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-pill);
+  box-shadow: var(--chrome-shadow);
+  padding: 4px;
+  gap: 3px;
+}
+
+.ctrlBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.ctrlBtn:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.ctrlBtnActive {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+.ctrlDivider {
+  width: 20px;
+  height: 1px;
+  background: var(--line);
+  margin: 2px 0;
+}
+
+.bottomCenter {
+  position: absolute;
+  bottom: var(--sp-6);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
 }
 
 .bottomStrip {
   position: absolute;
-  left: var(--inset);
-  bottom: var(--inset);
-  z-index: var(--z-map-chrome);
-  display: flex;
+  bottom: var(--sp-2);
+  left: var(--sp-4);
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-4);
-  padding-left: 2px;
+  gap: var(--sp-3);
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-subtle);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  pointer-events: auto;
 }
 
 .scale {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: 6px;
 }
 
 .scaleBar {
-  height: 6px;
-  border: 1px solid var(--text-faint);
-  border-top: none;
-  border-radius: 0 0 1px 1px;
-  transition: width var(--dur) var(--ease);
+  display: inline-block;
+  height: 3px;
+  background: var(--text-dim);
+  border-left: 2px solid var(--text-dim);
+  border-right: 2px solid var(--text-dim);
 }
 
 .scaleLabel {
   font-size: var(--fs-micro);
-  color: var(--text-faint);
-  line-height: 1;
 }
 
 .readout {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: 6px;
 }
 
-.coords,
-.zoom {
+.coords {
   font-size: var(--fs-micro);
-  color: var(--text-faint);
-  line-height: 1;
 }
 
 .sep {
+  display: inline-block;
   width: 1px;
-  height: 9px;
-  background: var(--border);
+  height: 10px;
+  background: var(--line-strong);
 }
 
-@media (max-width: 767px) {
-  .rightRail {
-    top: auto;
-    bottom: calc(var(--inset) + 200px);
-    transform: none;
-  }
+.zoom {
+  font-size: var(--fs-micro);
+}
 
+@media (max-width: 768px) {
+  .topLeftPill {
+    display: none;
+  }
   .bottomStrip {
     display: none;
+  }
+  .rightRail {
+    right: var(--sp-2);
   }
 }

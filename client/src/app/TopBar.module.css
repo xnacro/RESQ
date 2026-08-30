@@ -11,6 +11,7 @@
   box-shadow: var(--shadow-sm);
   z-index: var(--z-topbar);
   gap: var(--sp-4);
+  position: relative;
 }
 
 .brandWrapper {
@@ -69,9 +70,15 @@
 }
 
 .search {
+  position: relative;
   flex: 1;
   max-width: 580px;
   margin: 0 auto;
+}
+
+.searchInner {
+  position: relative;
+  width: 100%;
 }
 
 .searchControl {
@@ -86,6 +93,107 @@
   border-color: var(--accent) !important;
   background: #ffffff !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+.clearBtn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.clearBtn:hover {
+  background: var(--line-strong);
+  color: var(--text);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-panel);
+  z-index: var(--z-overlay);
+  overflow: hidden;
+  max-height: 380px;
+  overflow-y: auto;
+  animation: dropdownFade var(--dur-fast) var(--ease-out);
+}
+
+@keyframes dropdownFade {
+  0% { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: 10px var(--sp-4);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.dropdownItem:last-child {
+  border-bottom: none;
+}
+
+.dropdownItem:hover {
+  background: var(--accent-subtle);
+}
+
+.itemIconCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.dropdownItem:hover .itemIconCircle {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.itemContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itemName {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.itemMeta {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
 }
 
 .right {

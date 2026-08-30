@@ -1,54 +1,54 @@
-.surface {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-map);
+/* MapSurface CSS Module */
+
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background: var(--bg);
-  cursor: grab;
-  touch-action: none;
-  outline: none;
+  background: #f1f5f9;
 }
 
-.surface:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
-}
-
-.dragging {
-  cursor: grabbing;
-}
-
-/* Placeholder substrate, replaced when the real map service mounts */
-.basemap {
+.mapContainer {
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(120% 80% at 50% 40%, var(--map-wash) 0%, var(--bg) 62%, var(--bg-deep) 100%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.mount {
+.locationPin {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pinCore {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
+  z-index: 2;
+}
+
+.pinPulse {
   position: absolute;
-  inset: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.25);
+  animation: radarPulse 2s infinite ease-out;
+  z-index: 1;
 }
 
-/* Once the real map service attaches a node, the placeholder steps aside */
-.mount:not(:empty) + .basemap {
-  display: none;
-}
-
-.overlays {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-map-data);
-  pointer-events: none;
-}
-
-.overlays > * {
-  pointer-events: auto;
-}
-
-.vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(130% 90% at 50% 50%, transparent 58%, var(--map-vignette) 100%);
+@keyframes radarPulse {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
