@@ -503,6 +503,9 @@ export function useRouteStore() {
     setRouteRiskMetrics,
     applyReroute,
     triggerArrival,
+    hydrateNavigationSession,
+    persistNavigationSession,
+    clearPersistedSession,
   };
 }
 
