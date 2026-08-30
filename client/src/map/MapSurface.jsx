@@ -216,6 +216,41 @@ export function MapSurface({
         map.getCanvas().style.cursor = ''
       })
     }
+
+    // 4. Add WebGL User Location Marker Layer (GPU accelerated, guaranteed render)
+    if (!map.getSource('user-location-source')) {
+      map.addSource('user-location-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addLayer({
+        id: 'user-location-halo',
+        type: 'circle',
+        source: 'user-location-source',
+        paint: {
+          'circle-radius': 20,
+          'circle-color': '#2563eb',
+          'circle-opacity': 0.25,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#2563eb',
+          'circle-stroke-opacity': 0.6,
+        },
+      })
+
+      map.addLayer({
+        id: 'user-location-core',
+        type: 'circle',
+        source: 'user-location-source',
+        paint: {
+          'circle-radius': 9,
+          'circle-color': '#2563eb',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+          'circle-opacity': 1,
+        },
+      })
+    }
   }, [onGridSelect, onEventSelect])
 
   // Helper to fetch visible grid cells for current viewport
@@ -407,12 +442,29 @@ export function MapSurface({
     }
   }, [selectedGridGeometry, selectedGridStatus, mapLoaded])
 
-  // 4. Render Current Location Marker with Radar Pulse
+  // 4. Render Current Location Marker with WebGL GPU layers + DOM radar pulse
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded) return
+    if (!map || !mapLoaded || !map.isStyleLoaded()) return
+
+    const locSource = map.getSource('user-location-source')
 
     if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
+      const lat = parseFloat(selectedLocation.lat)
+      const lon = parseFloat(selectedLocation.lon)
+
+      if (locSource) {
+        locSource.setData({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [lon, lat] },
+            },
+          ],
+        })
+      }
+
       if (!markerRef.current) {
         const el = document.createElement('div')
         el.style.width = '48px'
@@ -424,28 +476,31 @@ export function MapSurface({
         el.style.pointerEvents = 'auto'
         el.style.cursor = 'pointer'
         el.innerHTML = `
-          <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(37,99,235,0.3); animation:pulseRing 2s infinite ease-out;"></div>
+          <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(37,99,235,0.25); animation:pulseRing 2s infinite ease-out;"></div>
           <div style="position:relative; width:22px; height:22px; border-radius:50%; background:#2563eb; border:3px solid #ffffff; box-shadow:0 2px 10px rgba(0,0,0,0.5); z-index:2; display:flex; align-items:center; justify-content:center;">
             <div style="width:6px; height:6px; border-radius:50%; background:#ffffff;"></div>
           </div>
         `
         markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([selectedLocation.lon, selectedLocation.lat])
+          .setLngLat([lon, lat])
           .addTo(map)
       } else {
-        markerRef.current.setLngLat([selectedLocation.lon, selectedLocation.lat])
+        markerRef.current.setLngLat([lon, lat])
       }
 
       map.flyTo({
-        center: [selectedLocation.lon, selectedLocation.lat],
+        center: [lon, lat],
         zoom: Math.max(map.getZoom(), 13),
         speed: 1.2,
         curve: 1.4,
         essential: true,
       })
-    } else if (markerRef.current) {
-      markerRef.current.remove()
-      markerRef.current = null
+    } else {
+      if (locSource) locSource.setData({ type: 'FeatureCollection', features: [] })
+      if (markerRef.current) {
+        markerRef.current.remove()
+        markerRef.current = null
+      }
     }
   }, [selectedLocation, mapLoaded])
 
