@@ -94,9 +94,44 @@ export async function getResqSessionById(sessionId) {
   }
 }
 
+// 5. Update Session Location and Retrieve Real-time 500m Grid Risk
+export async function updateResqSessionLocation({
+  sessionId,
+  lat,
+  lon,
+  accuracy = 10,
+  speed = 0,
+  heading = 0,
+}) {
+  try {
+    const res = await fetch(`${API_BASE}/location`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        sessionId,
+        lat,
+        lon,
+        accuracy,
+        speed,
+        heading,
+      }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update session location')
+    }
+    return data
+  } catch (err) {
+    console.error('updateResqSessionLocation error:', err.message)
+    throw err
+  }
+}
+
 export default {
   startResqSession,
   stopResqSession,
   getActiveResqSession,
   getResqSessionById,
+  updateResqSessionLocation,
 }

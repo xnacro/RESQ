@@ -3,6 +3,16 @@
 .container {
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 62px);
+  background: radial-gradient(circle at 50% 0%, #f0f9ff 0%, #f8fafc 100%);
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.inactiveContainer {
+  display: flex;
+  flex-direction: column;
   min-height: calc(100vh - 62px);
   background: radial-gradient(circle at 50% 0%, #f0f9ff 0%, #f8fafc 100%);
   padding: 32px 24px;
@@ -211,45 +221,57 @@
   margin: 0;
 }
 
-/* Active State View */
-.activeCard {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+/* ACTIVE OPERATIONAL SPLIT LAYOUT (Desktop & Mobile) */
+.activeOperationalLayout {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
-.activeHeader {
+.activeMapPane {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  background: #e2e8f0;
+}
+
+/* Floating Top Bar on Map */
+.mapFloatingBar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  padding-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 9999px;
+  padding: 8px 18px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  z-index: 100;
+  pointer-events: auto;
 }
 
-.activeHeaderLeft {
+.floatingLeft {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .activeStatusPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   background: rgba(240, 253, 244, 0.9);
   border: 1px solid rgba(187, 247, 208, 0.95);
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #15803d;
   letter-spacing: 0.04em;
@@ -269,30 +291,32 @@
   50% { transform: scale(1.2); opacity: 0.5; }
 }
 
-.sessionTitle {
-  font-size: 20px;
-  font-weight: 800;
+.areaBadge {
+  font-size: 13px;
+  font-weight: 700;
   color: #0f172a;
-  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.activeHeaderActions {
+.floatingRight {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .endBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 16px;
+  height: 32px;
+  padding: 0 12px;
   background: rgba(254, 242, 242, 0.9);
   border: 1px solid rgba(254, 202, 202, 0.95);
-  border-radius: 12px;
+  border-radius: 9999px;
   color: #dc2626;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -305,23 +329,118 @@
   transform: translateY(-1px);
 }
 
-.statsRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
+/* Right Safety Intelligence Panel */
+.activeSidePanel {
+  width: 380px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border-left: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: -4px 0 24px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  gap: 16px;
+  z-index: 100;
 }
 
-.statBox {
-  background: rgba(248, 250, 252, 0.8);
-  border: 1px solid rgba(226, 232, 240, 0.85);
+/* Risk Alert Warning Box */
+.riskAlertBanner {
+  background: rgba(254, 242, 242, 0.95);
+  border: 1px solid #fca5a5;
   border-radius: 14px;
-  padding: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #991b1b;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.alertIcon {
+  color: #dc2626;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alertContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.alertHeading {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.alertDesc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #7f1d1d;
+}
+
+/* Primary Risk Gauge Card */
+.riskGaugeCard {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.gaugeCircleWrapper {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  flex-shrink: 0;
+}
+
+.gaugeSvg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gaugeScoreNumber {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.gaugeScoreMax {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.riskGaugeInfo {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.statBoxLabel {
+.riskTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.riskLabelTitle {
   font-size: 11px;
   font-weight: 700;
   color: #64748b;
@@ -329,59 +448,171 @@
   letter-spacing: 0.05em;
 }
 
-.statBoxVal {
-  font-size: 16px;
+.riskStatusBadge {
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.riskSubMetrics {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.metricPill {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.metricKey {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.metricVal {
+  font-size: 12px;
   font-weight: 800;
   color: #0f172a;
 }
 
-.shareCard {
-  background: rgba(239, 246, 255, 0.7);
-  border: 1px solid rgba(191, 219, 254, 0.8);
-  border-radius: 16px;
-  padding: 18px;
+/* Grid Identification Card */
+.gridInfoCard {
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 14px;
+  padding: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
 }
 
-.shareInfo {
+.gridIdMono {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e40af;
+}
+
+.gridLocalityText {
+  font-size: 11.5px;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* Active Hazards Section */
+.hazardsSection {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+}
+
+.sectionHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hazardItem {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-left: 3.5px solid #dc2626;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hazardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hazardTitle {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.hazardSeverity {
+  font-size: 10px;
+  font-weight: 800;
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.hazardMeta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Share Live Safety Link Card */
+.shareCard {
+  background: rgba(239, 246, 255, 0.7);
+  border: 1px solid rgba(191, 219, 254, 0.85);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .shareHeading {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #1e40af;
 }
 
 .shareSubtext {
-  font-size: 12px;
+  font-size: 11px;
   color: #3b82f6;
 }
 
 .copyShareBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
   background: #2563eb;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #ffffff;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  flex-shrink: 0;
 }
 
 .copyShareBtn:hover {
   background: #1d4ed8;
-  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .activeOperationalLayout {
+    flex-direction: column;
+  }
+  .activeSidePanel {
+    width: 100%;
+    height: 45vh;
+    border-left: none;
+    border-top: 1px solid rgba(226, 232, 240, 0.85);
+  }
+  .activeMapPane {
+    height: 55vh;
+  }
 }
