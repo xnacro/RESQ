@@ -8,6 +8,78 @@ import {
 
 const router = express.Router();
 
+// GET /api/risk/point?lat=26.1445&lon=91.7362 - Real-time point-to-grid risk lookup with geometry
+router.get("/point", async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lon = parseFloat(req.query.lon);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({
+        success: false,
+        error: "Valid numeric 'lat' and 'lon' query parameters are required.",
+      });
+    }
+
+    // 1. Spatial point lookup using PostGIS ST_Contains (Assam first, then Meghalaya)
+    let cell = null;
+    const client = await (await import("../config/db.js")).default.connect();
+
+    try {
+      const asRes = await client.query(
+        `SELECT grid_id, state, district, block, center_lat, center_lon,
+                ST_AsGeoJSON(geom)::json AS geometry
+         FROM grid_500m.assam
+         WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))
+         LIMIT 1;`,
+        [lon, lat]
+      );
+
+      if (asRes.rows.length > 0) {
+        cell = asRes.rows[0];
+      } else {
+        const mlRes = await client.query(
+          `SELECT grid_id, state, district, block, center_lat, center_lon,
+                  ST_AsGeoJSON(geom)::json AS geometry
+           FROM grid_500m.meghalaya
+           WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))
+           LIMIT 1;`,
+          [lon, lat]
+        );
+        if (mlRes.rows.length > 0) {
+          cell = mlRes.rows[0];
+        }
+      }
+    } finally {
+      client.release();
+    }
+
+    if (!cell) {
+      return res.status(404).json({
+        success: false,
+        inCoverage: false,
+        message: "Location is outside RESQ operational coverage area (Assam & Meghalaya).",
+      });
+    }
+
+    // 2. Fetch complete risk breakdown and active events
+    const breakdown = await getDynamicRiskBreakdown(cell.grid_id);
+
+    return res.status(200).json({
+      success: true,
+      inCoverage: true,
+      data: {
+        ...breakdown,
+        geometry: cell.geometry,
+        block: cell.block,
+      },
+    });
+  } catch (error) {
+    console.error("Point risk lookup error:", error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET /api/risk/grid/:gridId - Get detailed static and dynamic risk breakdown with active evidence
 router.get("/grid/:gridId", async (req, res) => {
   try {
