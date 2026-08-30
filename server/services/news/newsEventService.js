@@ -4,6 +4,7 @@ import { extractDisasterEvent } from "../../../nlp/extraction/eventExtractor.js"
 import { resolveCoordinates, findAffectedGridCells } from "./newsGeolocationService.js";
 import { clusterAndCorroborateEvent } from "./corroborationService.js";
 import { recomputeGridsFromActiveEvents } from "../risk/dynamicRiskService.js";
+import { classifyDisasterText } from "../ml/disasterClassifierService.js";
 
 // Processes all pending RSS news items through NLP extraction, deduplication, and 500m grid linking
 export const processPendingNewsItems = async (batchLimit = 50) => {
@@ -17,6 +18,11 @@ export const processPendingNewsItems = async (batchLimit = 50) => {
 
   const affectedAssamGrids = new Set();
   const affectedMeghalayaGrids = new Set();
+
+  // ML configuration flags
+  const mlEnabled = process.env.ML_CLASSIFIER_ENABLED !== "false";
+  const mlMode = process.env.ML_CLASSIFIER_MODE || "shadow"; // 'off' | 'shadow' | 'active'
+  const mlThreshold = parseFloat(process.env.ML_CONFIDENCE_THRESHOLD) || 0.70;
 
   // 1. Fetch pending items ordered by published date
   const itemsRes = await pool.query(
@@ -57,7 +63,51 @@ export const processPendingNewsItems = async (batchLimit = 50) => {
         continue;
       }
 
-      // 3. Resolve Geolocation Coordinates
+      // 3. Execute ML classification on combined headline + description
+      let mlResult = null;
+      if (mlEnabled && mlMode !== "off") {
+        try {
+          const combinedText = `${row.title || ""} ${row.description || ""}`.trim();
+          mlResult = classifyDisasterText(combinedText);
+        } catch (err) {
+          console.warn(`[ML-INFERENCE] Error classifying item #${row.id}:`, err.message);
+        }
+      }
+
+      // Attach ML metadata to extraction payload for audit trail
+      if (mlResult && mlResult.isReady) {
+        nlpResult.ml = {
+          label: mlResult.label,
+          confidence: mlResult.confidence,
+          probabilities: mlResult.probabilities,
+          modelVersion: mlResult.modelVersion,
+          isDisaster: mlResult.isDisaster,
+          mode: mlMode,
+        };
+      }
+
+      // 4. In Active Mode: Apply Conservative Event Gate
+      if (mlMode === "active" && mlResult && mlResult.isReady && !mlResult.fallback) {
+        const isQualifiedActive = mlResult.label === "ACTIVE_DISASTER" && mlResult.confidence >= mlThreshold;
+        if (!isQualifiedActive) {
+          console.log(`[ML-GATE] Filtered non-active item #${row.id}: Label=${mlResult.label}, Conf=${mlResult.confidence}`);
+          await pool.query(
+            `UPDATE news.rss_items SET processing_status = 'NLP_PROCESSED_NON_ACTIVE' WHERE id = $1;`,
+            [row.id]
+          );
+          summary.filteredOut++;
+          continue;
+        }
+      }
+
+      // 5. In Shadow Mode: Log comparison telemetry without modifying event creation
+      if (mlMode === "shadow" && mlResult && mlResult.isReady) {
+        console.log(
+          `[SHADOW-EVAL] Item #${row.id}: Legacy=ACTIVE vs ML=${mlResult.label} (Conf: ${mlResult.confidence})`
+        );
+      }
+
+      // 6. Resolve Geolocation Coordinates
       const geoResult = await resolveCoordinates(nlpResult.location);
 
       if (!geoResult) {
@@ -69,7 +119,7 @@ export const processPendingNewsItems = async (batchLimit = 50) => {
         continue;
       }
 
-      // 4. Adjust confidence based on source reliability tier
+      // 7. Adjust confidence based on source reliability tier
       let finalConfidence = nlpResult.confidence;
       if (row.reliability_tier === 1) {
         finalConfidence = Math.min(0.98, finalConfidence + 0.15);
@@ -77,7 +127,7 @@ export const processPendingNewsItems = async (batchLimit = 50) => {
         finalConfidence = Math.max(0.3, finalConfidence - 0.10);
       }
 
-      // 5. Insert Disaster News Event
+      // 8. Insert Disaster News Event
       const state = nlpResult.location.state || (geoResult.lat > 25.7 && geoResult.lon > 91.5 ? "Assam" : "Meghalaya");
       const insertEventSql = `
         INSERT INTO disaster.news_events (
@@ -122,10 +172,10 @@ export const processPendingNewsItems = async (batchLimit = 50) => {
       const eventId = eventRes.rows[0].id;
       summary.eventsCreated++;
 
-      // 6. Corroborate and Cluster Multi-Source Reports
+      // 9. Corroborate and Cluster Multi-Source Reports
       await clusterAndCorroborateEvent(eventId, nlpResult, geoResult.lat, geoResult.lon);
 
-      // 7. Find Affected 500m Grid Cells within 5km to 12km regional impact radius
+      // 10. Find Affected 500m Grid Cells within 5km to 12km regional impact radius
       const bufferMeters =
         nlpResult.hazardType === "FLOOD" || nlpResult.hazardType === "FLASH_FLOOD"
           ? 12000
@@ -140,113 +190,97 @@ export const processPendingNewsItems = async (batchLimit = 50) => {
         const states = [];
         const impactScores = [];
 
-        for (const grid of affectedGrids) {
-          const distanceM = parseFloat(grid.distance_m || 0);
-          const decay = Math.max(0.15, 1.0 - distanceM / bufferMeters);
-          const impactScore = Math.round(nlpResult.severity * finalConfidence * decay * 10) / 10;
-
+        affectedGrids.forEach((g) => {
           eventIds.push(eventId);
-          gridIds.push(grid.grid_id);
-          states.push(grid.state);
+          gridIds.push(g.grid_id);
+          states.push(g.state);
+
+          const distanceRatio = Math.max(0, 1 - g.distance_meters / bufferMeters);
+          const impactScore = Math.round(nlpResult.severity * finalConfidence * distanceRatio * 100) / 100;
           impactScores.push(impactScore);
 
-          if ((grid.state || "Assam").toLowerCase() === "assam") {
-            affectedAssamGrids.add(grid.grid_id);
+          if (g.state === "Assam") {
+            affectedAssamGrids.add(g.grid_id);
           } else {
-            affectedMeghalayaGrids.add(grid.grid_id);
+            affectedMeghalayaGrids.add(g.grid_id);
           }
-          summary.gridsLinked++;
-        }
+        });
 
-        // Fast batch insert with UNNEST
         await pool.query(
           `
           INSERT INTO disaster.event_grid_links (event_id, grid_id, state, impact_score)
-          SELECT * FROM UNNEST($1::bigint[], $2::varchar[], $3::varchar[], $4::numeric[])
+          SELECT unnest($1::int[]), unnest($2::text[]), unnest($3::varchar[]), unnest($4::float[])
           ON CONFLICT (event_id, grid_id) DO UPDATE SET impact_score = EXCLUDED.impact_score;
         `,
           [eventIds, gridIds, states, impactScores]
         );
+
+        summary.gridsLinked += affectedGrids.length;
       }
 
-      // Update item status to GRID_LINKED
+      // Update source item status to GRID_LINKED
       await pool.query(
         `UPDATE news.rss_items SET processing_status = 'GRID_LINKED' WHERE id = $1;`,
         [row.id]
       );
-    } catch (itemErr) {
-      console.error(`❌ Error processing RSS item ${row.id}:`, itemErr.message);
+    } catch (err) {
+      console.error(`Failed to process news item #${row.id}:`, err.message);
       summary.failed++;
       await pool.query(
-        `UPDATE news.rss_items SET processing_status = 'FAILED', error_message = $1 WHERE id = $2;`,
-        [itemErr.message, row.id]
+        `UPDATE news.rss_items SET processing_status = 'FAILED' WHERE id = $1;`,
+        [row.id]
       );
     }
   }
 
-  // 8. Recompute complete dynamic risk state for all affected grid cells at the end of the batch
-  if (affectedAssamGrids.size > 0) {
-    await recomputeGridsFromActiveEvents(Array.from(affectedAssamGrids), "Assam");
-  }
-  if (affectedMeghalayaGrids.size > 0) {
-    await recomputeGridsFromActiveEvents(Array.from(affectedMeghalayaGrids), "Meghalaya");
+  // 11. Recompute Dynamic Risk for Affected 500m Grids
+  if (affectedAssamGrids.size > 0 || affectedMeghalayaGrids.size > 0) {
+    try {
+      await recomputeGridsFromActiveEvents(affectedAssamGrids, affectedMeghalayaGrids);
+    } catch (riskErr) {
+      console.error("Failed to recompute dynamic risk after news processing:", riskErr.message);
+    }
   }
 
   return summary;
 };
 
-// Fetches all active disaster events with spatial coordinates and metadata
+// Retrieves currently active disaster events from database with linked grid counts
 export const getActiveDisasterEvents = async () => {
-  const res = await pool.query(`
+  const query = `
     SELECT 
-      e.id, 
-      e.event_type, 
-      e.hazard_type, 
-      e.severity, 
-      e.confidence,
-      e.location_text, 
-      e.district, 
-      e.state, 
-      e.latitude, 
-      e.longitude,
-      e.asset_type, 
-      e.asset_name, 
-      e.road_blocked, 
-      e.bridge_damaged, 
-      e.bridge_closed,
-      e.reported_at, 
-      e.valid_until, 
-      e.event_status,
-      e.cluster_id,
-      c.source_count,
-      c.corroboration_score,
-      i.title AS news_title,
-      i.url AS news_url,
-      s.name AS source_name,
-      s.reliability_tier
+      e.id, e.event_type, e.hazard_type, e.severity, e.confidence,
+      e.location_text, e.district, e.state, e.latitude, e.longitude,
+      e.asset_type, e.asset_name, e.road_blocked, e.bridge_damaged, e.bridge_closed,
+      e.event_time, e.reported_at, e.valid_until, e.event_status,
+      e.raw_extraction,
+      i.title AS news_title, i.url AS news_url, s.name AS source_name, s.reliability_tier,
+      COUNT(l.grid_id) AS impacted_grids_count
     FROM disaster.news_events e
-    LEFT JOIN disaster.event_clusters c ON e.cluster_id = c.id
-    LEFT JOIN news.rss_items i ON e.rss_item_id = i.id
-    LEFT JOIN news.rss_sources s ON i.source_id = s.id
-    WHERE e.event_status = 'ACTIVE' AND (e.valid_until IS NULL OR e.valid_until > NOW())
-    ORDER BY e.severity DESC, e.reported_at DESC;
-  `);
+    JOIN news.rss_items i ON e.rss_item_id = i.id
+    JOIN news.rss_sources s ON i.source_id = s.id
+    LEFT JOIN disaster.event_grid_links l ON e.id = l.event_id
+    WHERE e.event_status = 'ACTIVE' AND e.valid_until > NOW()
+    GROUP BY e.id, i.title, i.url, s.name, s.reliability_tier
+    ORDER BY e.reported_at DESC;
+  `;
+  const res = await pool.query(query);
   return res.rows;
 };
 
-// Fetches a single disaster event with all linked 500m grid cells
+// Retrieves a single disaster event by ID with all linked 500m grid cell IDs
 export const getDisasterEventById = async (eventId) => {
   const eventRes = await pool.query(
     `
     SELECT 
-      e.*,
-      i.title AS news_title,
-      i.url AS news_url,
-      s.name AS source_name,
-      s.reliability_tier
+      e.id, e.event_type, e.hazard_type, e.severity, e.confidence,
+      e.location_text, e.district, e.state, e.latitude, e.longitude,
+      e.asset_type, e.asset_name, e.road_blocked, e.bridge_damaged, e.bridge_closed,
+      e.event_time, e.reported_at, e.valid_until, e.event_status, e.raw_extraction,
+      i.title AS news_title, i.url AS news_url, s.name AS source_name
     FROM disaster.news_events e
-    LEFT JOIN news.rss_items i ON e.rss_item_id = i.id
-    LEFT JOIN news.rss_sources s ON i.source_id = s.id
+    JOIN news.rss_items i ON e.rss_item_id = i.id
+    JOIN news.rss_sources s ON i.source_id = s.id
     WHERE e.id = $1;
   `,
     [eventId]
@@ -254,7 +288,7 @@ export const getDisasterEventById = async (eventId) => {
 
   if (eventRes.rows.length === 0) return null;
 
-  const linksRes = await pool.query(
+  const gridsRes = await pool.query(
     `
     SELECT grid_id, state, impact_score, linked_at
     FROM disaster.event_grid_links
@@ -266,36 +300,25 @@ export const getDisasterEventById = async (eventId) => {
 
   return {
     event: eventRes.rows[0],
-    linkedGrids: linksRes.rows,
+    impactedGrids: gridsRes.rows,
   };
 };
 
-// Fetches all disaster events affecting a specific 500m grid cell
+// Retrieves disaster events affecting a specific 500m grid cell ID
 export const getEventsForGrid = async (gridId) => {
   const res = await pool.query(
     `
     SELECT 
-      l.impact_score,
-      l.linked_at,
-      e.id AS event_id,
-      e.event_type,
-      e.hazard_type,
-      e.severity,
-      e.confidence,
-      e.location_text,
-      e.road_blocked,
-      e.bridge_damaged,
-      e.bridge_closed,
-      e.event_status,
-      i.title AS news_title,
-      i.url AS news_url,
-      s.name AS source_name,
-      s.reliability_tier
+      e.id, e.event_type, e.hazard_type, e.severity, e.confidence,
+      e.location_text, e.district, e.state, e.latitude, e.longitude,
+      e.road_blocked, e.bridge_damaged, e.bridge_closed,
+      l.impact_score, l.linked_at,
+      i.title AS news_title, s.name AS source_name
     FROM disaster.event_grid_links l
     JOIN disaster.news_events e ON l.event_id = e.id
-    LEFT JOIN news.rss_items i ON e.rss_item_id = i.id
-    LEFT JOIN news.rss_sources s ON i.source_id = s.id
-    WHERE l.grid_id = $1
+    JOIN news.rss_items i ON e.rss_item_id = i.id
+    JOIN news.rss_sources s ON i.source_id = s.id
+    WHERE l.grid_id = $1 AND e.event_status = 'ACTIVE' AND e.valid_until > NOW()
     ORDER BY l.impact_score DESC;
   `,
     [gridId]
