@@ -68,10 +68,12 @@ export function createViewportStore() {
   }
 }
 
+const fallbackViewportStore = createViewportStore()
+const fallbackCursorStore = createCursorStore()
+
 export function useViewportStore() {
   const store = useContext(ViewportContext)
-  if (!store) throw new Error('useViewportStore must be used inside MapViewportProvider')
-  return store
+  return store || fallbackViewportStore
 }
 
 export function useMapViewport() {
@@ -89,8 +91,7 @@ export function useMapViewport() {
 
 export function useCursorStore() {
   const store = useContext(CursorContext)
-  if (!store) throw new Error('useCursorStore must be used inside MapViewportProvider')
-  return store
+  return store || fallbackCursorStore
 }
 
 export function useCursorPosition() {

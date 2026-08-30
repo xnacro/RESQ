@@ -12,6 +12,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { MapSurface } from '../map/MapSurface.jsx'
+import { MapViewportProvider } from '../map/viewport.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
 import { getResqSessionTelemetry, registerResqTracker } from '../services/resqApi.js'
 import styles from './ResqTrackView.module.css'
@@ -186,8 +187,9 @@ export function ResqTrackView() {
   const localityText = `${telemetry.district || 'Guwahati'}, ${telemetry.state || 'Assam'}`
 
   return (
-    <div className={styles.trackContainer}>
-      {/* Main Map Canvas */}
+    <MapViewportProvider>
+      <div className={styles.trackContainer}>
+        {/* Main Map Canvas */}
       <div className={styles.mapPane}>
         <div className={`${styles.floatingTopBar} ${isEmergency ? styles.floatingTopBarEmergency : ''}`}>
           <div className={styles.floatingLeft}>
@@ -386,6 +388,7 @@ export function ResqTrackView() {
         </div>
       </div>
     </div>
+  </MapViewportProvider>
   )
 }
 

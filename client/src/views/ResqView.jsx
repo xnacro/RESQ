@@ -19,6 +19,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { MapSurface } from '../map/MapSurface.jsx'
+import { MapViewportProvider } from '../map/viewport.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
 import { useResqMode } from '../hooks/useResqMode.js'
 import styles from './ResqView.module.css'
@@ -192,10 +193,11 @@ export function ResqView() {
     : 'Guwahati, Assam'
 
   return (
-    <div className={isActive ? styles.container : styles.inactiveContainer}>
-      {/* INACTIVE STATE: Welcome & Start Control */}
-      {!isActive && (
-        <div className={styles.contentWrapper}>
+    <MapViewportProvider>
+      <div className={isActive ? styles.container : styles.inactiveContainer}>
+        {/* INACTIVE STATE: Welcome & Start Control */}
+        {!isActive && (
+          <div className={styles.contentWrapper}>
           {(error || actionError) && (
             <div style={{ padding: '12px 16px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '12px', color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>
               <AlertTriangle size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />
@@ -740,6 +742,7 @@ export function ResqView() {
         </div>
       )}
     </div>
+  </MapViewportProvider>
   )
 }
 
