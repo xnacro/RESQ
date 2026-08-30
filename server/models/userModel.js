@@ -82,6 +82,9 @@ const fallbackUsersStore = new Map([
   ],
 ]);
 
+// In-memory store for password reset tokens
+const passwordResetTokens = new Map();
+
 let isDbAvailable = false;
 
 // Initialize Postgres Schema if database is reachable
@@ -213,6 +216,27 @@ export async function findUserById(id) {
     if (user.id === id) return user;
   }
   return null;
+}
+
+export async function findUserByIdentifier(identifier) {
+  if (!identifier) return null;
+  const clean = identifier.toString().trim();
+  if (clean.includes("@") && clean.includes(".")) {
+    return await findUserByEmail(clean);
+  }
+  if (clean.startsWith("@") || /^[a-zA-Z0-9_]{3,20}$/.test(clean)) {
+    const byUser = await findUserByUsername(clean);
+    if (byUser) return byUser;
+  }
+  const byMobile = await findUserByMobile(clean);
+  if (byMobile) return byMobile;
+  return (await findUserByEmail(clean)) || (await findUserByUsername(clean));
+}
+
+export async function isUsernameAvailable(username) {
+  if (!username) return false;
+  const existing = await findUserByUsername(username);
+  return !existing;
 }
 
 export async function createUser({ name, email, mobile, username, password, role = ROLES.VIEWER, department = "General Operations" }) {
@@ -416,6 +440,28 @@ export async function listAllUsers() {
   }));
 }
 
+export const getAllUsers = listAllUsers;
+
+export async function createPasswordResetToken(identifier) {
+  const user = await findUserByIdentifier(identifier);
+  if (!user) return null;
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = Date.now() + 15 * 60 * 1000;
+  passwordResetTokens.set(token, { userId: user.id, expiresAt });
+  return { token, email: user.email, expiresAt };
+}
+
+export async function resetUserPasswordWithToken(token, newPassword) {
+  const record = passwordResetTokens.get(token);
+  if (!record || Date.now() > record.expiresAt) {
+    passwordResetTokens.delete(token);
+    return { success: false, error: "Reset link has expired or is invalid." };
+  }
+  const updatedUser = await updateUserPassword(record.userId, newPassword);
+  passwordResetTokens.delete(token);
+  return { success: !!updatedUser, user: updatedUser };
+}
+
 export function verifyPassword(password, hash) {
   if (!password || !hash) return false;
   return bcrypt.compareSync(password, hash);
@@ -429,6 +475,8 @@ export default {
   findUserByUsername,
   findUserByMobile,
   findUserById,
+  findUserByIdentifier,
+  isUsernameAvailable,
   createUser,
   updateUserPassword,
   updateProfile,
@@ -436,5 +484,8 @@ export default {
   updateUserStatus,
   updateLastLogin,
   listAllUsers,
+  getAllUsers,
+  createPasswordResetToken,
+  resetUserPasswordWithToken,
   verifyPassword,
 };
