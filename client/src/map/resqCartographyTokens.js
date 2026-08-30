@@ -1,40 +1,41 @@
 // Centralized RESQ Cartographic Palette and Visual Tokens
 // Defines consistent palettes for basemap geometry, typography, risk states, and operational overlays
+// Uses a modern cool blue-white, slate, and technical cartography palette (0% cream/beige)
 
 export const RESQ_PALETTE = Object.freeze({
-  // Land & Surface (Soft warm-neutral light stone tone, never pure white)
-  LAND: '#f4f1ea',
-  LAND_ALTERNATE: '#eae5dc',
-  URBAN: '#e2e5ea',
-  RESIDENTIAL_ZONE: '#eaecef',
-  INDUSTRIAL_ZONE: '#dcdfe5',
-  PARK: '#d4e8d8',
-  FOREST: '#c3dec9',
-  SAND: '#e8dfc8',
+  // Land & Surface (Cool blue-white and light cool-gray technical canvas)
+  LAND: '#f7fafc',
+  LAND_ALTERNATE: '#eef3f8',
+  URBAN: '#e5eaf0',
+  RESIDENTIAL_ZONE: '#ebf0f5',
+  INDUSTRIAL_ZONE: '#e0e6ec',
+  PARK: '#d9ede7',
+  FOREST: '#dcefea',
+  SAND: '#e9eef3',
 
-  // Water & Rivers (Medium-light rich calm blue with prominent river channels for Brahmaputra & Barak)
-  WATER: '#a8ceee',
-  WATER_DEEP: '#8ebde4',
-  WATER_LINE: '#2575b8',
-  WATER_STREAM: '#5b9dd4',
+  // Water & Rivers (Clear modern blue with prominent Brahmaputra & Barak river corridors)
+  WATER: '#d7e8f8',
+  WATER_DEEP: '#b7d7f2',
+  WATER_LINE: '#4a9ed8',
+  WATER_STREAM: '#79bfe8',
 
-  // Buildings & Footprints (Slightly darker than land, visible at high zoom with clean stroke)
-  BUILDING: '#d9dee5',
-  BUILDING_STROKE: '#c7cdd6',
-  BUILDING_3D_LOW: '#cbd2db',
-  BUILDING_3D_MID: '#b4beca',
+  // Buildings & Footprints (Cool gray-blue, visible at zoom 13.5+ with crisp stroke)
+  BUILDING: '#dce3eb',
+  BUILDING_STROKE: '#c8d1db',
+  BUILDING_3D_LOW: '#d4dce6',
+  BUILDING_3D_MID: '#c0cbd6',
   BUILDING_3D_HIGH: '#94a3b8',
 
-  // Administrative Boundaries (Understated medium gray)
+  // Administrative Boundaries (Cool gray-blue, understated)
   BOUNDARY_COUNTRY: '#475569',
   BOUNDARY_STATE: '#64748b',
   BOUNDARY_DISTRICT: '#94a3b8',
 
-  // Road Network Hierarchy (Deep slate casings with crisp warm-white centers for depth)
+  // Road Network Hierarchy (Deep slate casings with bright cool-white centers for depth)
   ROAD_MOTORWAY: '#ffffff',
-  ROAD_MOTORWAY_CASING: '#2d3748',
+  ROAD_MOTORWAY_CASING: '#334155',
   ROAD_TRUNK: '#ffffff',
-  ROAD_TRUNK_CASING: '#4a5568',
+  ROAD_TRUNK_CASING: '#475569',
   ROAD_PRIMARY: '#ffffff',
   ROAD_PRIMARY_CASING: '#64748b',
   ROAD_SECONDARY: '#ffffff',
@@ -46,25 +47,25 @@ export const RESQ_PALETTE = Object.freeze({
   ROAD_PATH: '#94a3b8',
   ROAD_TUNNEL_CASING: '#64748b',
 
-  // Typography & Labels (High-contrast slate-900 / slate-800 with crisp 2px white halos)
+  // Typography & Labels (High-contrast slate-900 / slate-700 with crisp 2px white halos)
   LABEL_CITY: '#0f172a',
-  LABEL_TOWN: '#1e293b',
-  LABEL_LOCALITY: '#334155',
-  LABEL_SUBURB: '#475569',
-  LABEL_ROAD: '#334155',
-  LABEL_WATER: '#1e5380',
-  LABEL_PARK: '#1b5e20',
+  LABEL_TOWN: '#334155',
+  LABEL_LOCALITY: '#64748b',
+  LABEL_SUBURB: '#64748b',
+  LABEL_ROAD: '#475569',
+  LABEL_WATER: '#1769aa',
+  LABEL_PARK: '#1e5f4a',
   LABEL_HALO: '#ffffff',
 
-  // POI & Infrastructure Colors (High readability operational markers)
-  POI_EMERGENCY: '#b91c1c',
+  // POI & Infrastructure Colors (Operational emergency & transit markers)
+  POI_EMERGENCY: '#dc2626',
   POI_HOSPITAL: '#b91c1c',
   POI_POLICE: '#1d4ed8',
   POI_FIRE: '#c2410c',
   POI_TRANSIT: '#0369a1',
   POI_AIRPORT: '#0f172a',
   POI_CIVIC: '#334155',
-  POI_COMMERCIAL: '#475569',
+  POI_COMMERCIAL: '#64748b',
 
   // Dark Theme Cartography Palette
   DARK_LAND: '#0b1120',
@@ -86,7 +87,7 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'LOW',
     label: 'Low',
     color: '#10b981',
-    fillRgba: 'rgba(16, 185, 129, 0.16)',
+    fillRgba: 'rgba(16, 185, 129, 0.14)',
     lineRgba: 'rgba(16, 185, 129, 0.0)',
     badgeBg: '#ecfdf5',
     badgeBorder: '#a7f3d0',
@@ -96,8 +97,8 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'MODERATE',
     label: 'Moderate',
     color: '#f59e0b',
-    fillRgba: 'rgba(245, 158, 11, 0.24)',
-    lineRgba: 'rgba(245, 158, 11, 0.55)',
+    fillRgba: 'rgba(245, 158, 11, 0.22)',
+    lineRgba: 'rgba(245, 158, 11, 0.45)',
     badgeBg: '#fffbeb',
     badgeBorder: '#fde68a',
     description: 'Caution / Moderate Susceptibility',
@@ -106,8 +107,8 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'HIGH',
     label: 'High',
     color: '#ea580c',
-    fillRgba: 'rgba(234, 88, 12, 0.35)',
-    lineRgba: 'rgba(234, 88, 12, 0.85)',
+    fillRgba: 'rgba(234, 88, 12, 0.30)',
+    lineRgba: 'rgba(234, 88, 12, 0.75)',
     badgeBg: '#fff7ed',
     badgeBorder: '#fed7aa',
     description: 'Danger / Heightened Risk',
@@ -116,7 +117,7 @@ export const RESQ_RISK_COLORS = Object.freeze({
     key: 'CRITICAL',
     label: 'Critical',
     color: '#dc2626',
-    fillRgba: 'rgba(220, 38, 38, 0.48)',
+    fillRgba: 'rgba(220, 38, 38, 0.40)',
     lineRgba: 'rgba(220, 38, 38, 0.95)',
     badgeBg: '#fef2f2',
     badgeBorder: '#fecaca',

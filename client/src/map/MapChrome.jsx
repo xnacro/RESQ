@@ -127,9 +127,11 @@ export function MapChrome({
       <div className={styles.topLeftStack}>
         <div className={styles.topLeftPill}>
           <Info size={14} className={styles.pillIcon} />
-          <span className={styles.pillBold}>RESQ Map</span>
-          <span className={styles.pillSep}>|</span>
-          <span className={styles.pillText}>Assam & Meghalaya (408k Grids)</span>
+          <span className={styles.pillBold}>RESQ MAP</span>
+          <span className={styles.pillSep}>•</span>
+          <span className={styles.pillText}>Assam &amp; Meghalaya</span>
+          <span className={styles.pillSep}>•</span>
+          <span className={styles.pillText}>408K Grid Cells</span>
         </div>
         <MapLegend />
       </div>
