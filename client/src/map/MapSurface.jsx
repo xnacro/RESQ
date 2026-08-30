@@ -1,4 +1,4 @@
-// MapLibre WebGL map substrate for RESQ disaster intelligence
+// MapLibre WebGL vector map substrate for RESQ disaster intelligence
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -23,12 +23,15 @@ export function MapSurface({
   const mapRef = useRef(null)
   const markerRef = useRef(null)
   const popupRef = useRef(null)
+  const currentModeRef = useRef(mode)
   const [mapLoaded, setMapLoaded] = useState(false)
   const { setCenter, setZoom } = useMapViewport()
   const cursorStore = useCursorStore()
 
   // Helper to attach risk grid & disaster event layers to MapLibre
   const setupLayers = useCallback((map) => {
+    if (!map || !map.isStyleLoaded()) return
+
     // 1. Add 500m Risk Grid Source & Layers
     if (!map.getSource('risk-grid-source')) {
       map.addSource('risk-grid-source', {
@@ -199,7 +202,7 @@ export function MapSurface({
     }
   }, [onGridSelect, onEventSelect])
 
-  // Helper to fetch visible grid cells for the current viewport
+  // Helper to fetch visible grid cells for current viewport
   const refreshViewportGrids = useCallback(async () => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
@@ -289,6 +292,10 @@ export function MapSurface({
       if (onMapReady) onMapReady(map)
     })
 
+    map.on('error', (e) => {
+      console.warn('MapLibre notice:', e.error?.message || e.message)
+    })
+
     map.on('move', () => {
       const c = map.getCenter()
       const z = map.getZoom()
@@ -333,10 +340,14 @@ export function MapSurface({
     }
   }, [setupLayers, refreshViewportGrids, refreshActiveEvents])
 
-  // 2. Handle Map Mode Changes (Normal, 3D, Terrain, Satellite, Hybrid)
+  // 2. Handle Map Mode Changes (Normal, Liberty, 3D, Terrain, Satellite, Hybrid, RESQ)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
+
+    // Prevent redundant style resets on initial mount
+    if (currentModeRef.current === mode) return
+    currentModeRef.current = mode
 
     const nextStyle = getMapStyle(mode)
     map.setStyle(nextStyle)
@@ -358,7 +369,7 @@ export function MapSurface({
   // 3. Render Selected / Current 500m Grid Highlight Polygon
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded) return
+    if (!map || !mapLoaded || !map.isStyleLoaded()) return
 
     const source = map.getSource('selected-grid-highlight-source')
     if (!source) return
