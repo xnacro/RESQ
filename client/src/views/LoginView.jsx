@@ -352,10 +352,11 @@ export function LoginView({ initialMode = 'login' }) {
         {/* Top Branding */}
         <div className={styles.topBranding}>
           <div className={styles.brandLogoRow}>
-            <div className={styles.brandIcon}>
-              <Shield size={22} strokeWidth={2.4} />
-            </div>
-            <h1 className={styles.brandTitle}>RESQ</h1>
+            <img
+              src="/resq-logo.png"
+              alt="resQ Logo"
+              style={{ height: '62px', width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
+            />
           </div>
           <div className={styles.brandBadge}>
             <span>Assess</span>

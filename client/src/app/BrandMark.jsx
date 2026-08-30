@@ -1,24 +1,43 @@
-// Vector BrandMark for RESQ disaster intelligence
-import { ShieldAlert } from 'lucide-react'
+// Vector and Image BrandMark for RESQ disaster intelligence
+import React from 'react'
 
-export function BrandMark({ size = 24, className }) {
+export function BrandMark({ height = 28, className, showText = false }) {
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        width: size + 10,
-        height: size + 10,
-        borderRadius: '10px',
-        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-        color: '#ffffff',
-        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
+        gap: '8px',
+        userSelect: 'none',
       }}
       className={className}
-      aria-hidden="true"
+      aria-label="resQ Brand"
     >
-      <ShieldAlert size={size} strokeWidth={2.2} />
+      <img
+        src="/resq-logo.png"
+        alt="resQ"
+        style={{
+          height: `${height}px`,
+          width: 'auto',
+          objectFit: 'contain',
+          display: 'block',
+          mixBlendMode: 'multiply',
+        }}
+      />
+      {showText && (
+        <span
+          style={{
+            fontSize: `${Math.round(height * 0.55)}px`,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+          }}
+        >
+          resQ
+        </span>
+      )}
     </div>
   )
 }
+
+export default BrandMark

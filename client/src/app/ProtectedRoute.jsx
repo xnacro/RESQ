@@ -13,8 +13,7 @@ export function ProtectedRoute({ children, allowedRoles }) {
       <div className={styles.loaderContainer}>
         <div className={styles.loaderCard}>
           <div className={styles.brandHeader}>
-            <BrandMark size={28} />
-            <span className={styles.brandName}>RESQ</span>
+            <BrandMark height={36} />
           </div>
 
           <div className={styles.spinnerWrapper}>
