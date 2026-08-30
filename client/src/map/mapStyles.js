@@ -13,8 +13,8 @@ export const MAP_MODES = {
 
 // OpenFreeMap vector styles
 export const OPEN_FREE_MAP_STYLES = Object.freeze({
-  BRIGHT: 'https://tiles.openfreemap.org/styles/bright',
   LIBERTY: 'https://tiles.openfreemap.org/styles/liberty',
+  BRIGHT: 'https://tiles.openfreemap.org/styles/bright',
   POSITRON: 'https://tiles.openfreemap.org/styles/positron',
 })
 
@@ -88,7 +88,6 @@ export const STANDALONE_HYBRID_STYLE = Object.freeze({
 export function getMapStyle(mode = MAP_MODES.NORMAL) {
   switch (mode) {
     case MAP_MODES.NORMAL:
-      return OPEN_FREE_MAP_STYLES.BRIGHT
     case MAP_MODES.LIBERTY:
       return OPEN_FREE_MAP_STYLES.LIBERTY
     case MAP_MODES.D3:
@@ -101,6 +100,6 @@ export function getMapStyle(mode = MAP_MODES.NORMAL) {
     case MAP_MODES.RESQ:
       return OPEN_FREE_MAP_STYLES.POSITRON
     default:
-      return OPEN_FREE_MAP_STYLES.BRIGHT
+      return OPEN_FREE_MAP_STYLES.LIBERTY
   }
 }
