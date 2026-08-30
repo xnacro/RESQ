@@ -1,4 +1,5 @@
 // MapChrome floating UI controls and overlays for RESQ Operations Map
+
 import { useState } from 'react'
 import { Crosshair, Minus, Plus, Compass, Maximize2, Minimize2, Box, Info } from 'lucide-react'
 import { Tooltip } from '../ui/index.js'
@@ -6,7 +7,6 @@ import { formatCoord } from '../lib/format.js'
 import { metersPerPixel } from './projection.js'
 import { useCursorPosition, useMapViewport } from './viewportContext.js'
 import { LayerSwitcher } from './LayerSwitcher.jsx'
-import { MapLegend } from './MapLegend.jsx'
 import { MAP_MODES } from './mapStyles.js'
 import styles from './MapChrome.module.css'
 
@@ -16,6 +16,8 @@ const TARGET_BAR_PX = 96
 export function VerticalControls({ onLocateMe, onToggle3D, is3D = false }) {
   const { zoomBy, reset } = useMapViewport()
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isRecentering, setIsRecentering] = useState(false)
+  const [isLocating, setIsLocating] = useState(false)
 
   const handleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -27,17 +29,45 @@ export function VerticalControls({ onLocateMe, onToggle3D, is3D = false }) {
     }
   }
 
+  const handleRecenter = () => {
+    setIsRecentering(true)
+    reset()
+    setTimeout(() => setIsRecentering(false), 900)
+  }
+
+  const handleLocate = async () => {
+    setIsLocating(true)
+    if (onLocateMe) {
+      try {
+        await onLocateMe()
+      } catch {
+        // Handled in parent
+      }
+    }
+    setTimeout(() => setIsLocating(false), 1200)
+  }
+
   return (
     <div className={styles.verticalStack} role="toolbar" aria-label="Map Navigation Controls">
       <Tooltip content="Locate me (GPS)" placement="left">
-        <button type="button" className={styles.ctrlBtn} onClick={onLocateMe} aria-label="Use my device location">
-          <Crosshair size={17} strokeWidth={2} />
+        <button
+          type="button"
+          className={`${styles.ctrlBtn} ${isLocating ? styles.ctrlBtnActive : ''}`}
+          onClick={handleLocate}
+          aria-label="Use my device location"
+        >
+          <Crosshair size={17} strokeWidth={2} className={isLocating ? styles.pulseLocating : ''} />
         </button>
       </Tooltip>
 
       <Tooltip content="Recenter on Guwahati" placement="left">
-        <button type="button" className={styles.ctrlBtn} onClick={reset} aria-label="Reset orientation to north">
-          <Compass size={17} strokeWidth={2} />
+        <button
+          type="button"
+          className={`${styles.ctrlBtn} ${isRecentering ? styles.ctrlBtnActive : ''}`}
+          onClick={handleRecenter}
+          aria-label="Reset orientation to north"
+        >
+          <Compass size={17} strokeWidth={2} className={isRecentering ? styles.spinCompass : ''} />
         </button>
       </Tooltip>
 
@@ -123,7 +153,7 @@ export function MapChrome({
 
   return (
     <div className={styles.chromeOverlay}>
-      {/* Top-left floating attribution and legend stack */}
+      {/* Top-left floating attribution stack (without Risk Index) */}
       <div className={styles.topLeftStack}>
         <div className={styles.topLeftPill}>
           <Info size={14} className={styles.pillIcon} />
@@ -133,7 +163,6 @@ export function MapChrome({
           <span className={styles.pillSep}>•</span>
           <span className={styles.pillText}>408K Grid Cells</span>
         </div>
-        <MapLegend />
       </div>
 
       {/* Right vertical controls stack */}

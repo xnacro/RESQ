@@ -96,8 +96,30 @@
 }
 
 .ctrlBtnActive {
-  background: var(--accent) !important;
-  color: #ffffff !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+.spinCompass {
+  animation: spinCompass 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  color: #2563eb;
+}
+
+@keyframes spinCompass {
+  0% { transform: rotate(0deg) scale(0.9); }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.pulseLocating {
+  animation: pulseRadar 0.8s infinite ease-in-out;
+  color: #2563eb;
+}
+
+@keyframes pulseRadar {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.5; }
 }
 
 .ctrlDivider {

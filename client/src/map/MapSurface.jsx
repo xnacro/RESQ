@@ -1,33 +1,47 @@
-// MapLibre WebGL vector map substrate with custom RESQ cartography and risk overlays
+// High-performance MapLibre GL WebGL Map Surface component for RESQ Digital Twin GIS Operations
+
 import { useEffect, useRef, useState, useCallback } from 'react'
-import * as maplibreModule from 'maplibre-gl'
+import maplibreModule from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { getMapStyle, MAP_MODES } from './mapStyles.js'
+import { MAP_MODES, getMapStyle } from './mapStyles.js'
+import { GUWAHATI_CENTER, DEFAULT_ZOOM, ZOOM_RANGE } from './constants.js'
+import { useViewportStore, useCursorStore } from './viewportContext.js'
+import { getViewportGrids, getActiveDisasterEvents } from '../services/api.js'
 import {
   getRiskFillStyle,
   getRiskOutlineStyle,
   getSelectedGridFillStyle,
   getSelectedGridOutlineStyle,
-  getEventCirclePaint,
   getRouteLayerStyles,
+  getEventCirclePaint,
 } from './resqRiskStyle.js'
-import { GUWAHATI_CENTER, DEFAULT_ZOOM } from './constants.js'
-import { useViewportStore, useCursorStore } from './viewportContext.js'
-import { getViewportGrids, getActiveDisasterEvents } from '../services/api.js'
-import styles from './MapSurface.module.css'
 
-// Resolve MapLibre constructor safely for both ESM namespace and default exports
 const ml = maplibreModule.default || maplibreModule
 const MapClass = ml.Map || maplibreModule.Map
 const MarkerClass = ml.Marker || maplibreModule.Marker
 const PopupClass = ml.Popup || maplibreModule.Popup
 
-// Inject pulsing marker keyframe animation once
+// Inject high-visibility pulsing radar keyframe animations
 const PULSE_STYLE_ID = 'resq-pulse-keyframes'
 if (typeof document !== 'undefined' && !document.getElementById(PULSE_STYLE_ID)) {
   const style = document.createElement('style')
   style.id = PULSE_STYLE_ID
-  style.textContent = `@keyframes pulseRing { 0% { transform: scale(0.3); opacity: 0.8; } 100% { transform: scale(2.0); opacity: 0; } }`
+  style.textContent = `
+    @keyframes pulseRing1 {
+      0% { transform: scale(0.25); opacity: 0.95; }
+      50% { opacity: 0.55; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    @keyframes pulseRing2 {
+      0% { transform: scale(0.2); opacity: 0.9; }
+      50% { opacity: 0.6; }
+      100% { transform: scale(1.75); opacity: 0; }
+    }
+    @keyframes beaconGlow {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px rgba(37,99,235,0.4), 0 0 20px rgba(37,99,235,0.7); }
+      50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(37,99,235,0.2), 0 0 28px rgba(37,99,235,0.9); }
+    }
+  `
   document.head.appendChild(style)
 }
 
@@ -57,54 +71,100 @@ export function MapSurface({
   const viewportStore = useViewportStore()
   const cursorStore = useCursorStore()
 
-  // Store volatile callbacks in refs to avoid re-triggering effects
+  // Ref cache to keep stable callbacks without teardowns
   const callbacksRef = useRef({ onMapClick, onGridSelect, onEventSelect, onMapReady })
-  callbacksRef.current = { onMapClick, onGridSelect, onEventSelect, onMapReady }
-  selectedLocationRef.current = selectedLocation
-  modeRef.current = mode
+  useEffect(() => {
+    callbacksRef.current = { onMapClick, onGridSelect, onEventSelect, onMapReady }
+    selectedLocationRef.current = selectedLocation
+    modeRef.current = mode
+  })
 
-  // Helper to attach custom RESQ operational layers on top of basemap
+  // Add all custom RESQ operational layers
   const addCustomLayers = useCallback((map) => {
-    if (!map || !map.isStyleLoaded()) return
+    if (!map) return
+    const beforeId = map.getLayer('resq-label-place-town')
+      ? 'resq-label-place-town'
+      : undefined
 
-    const allLayers = map.getStyle().layers || []
-    const firstSymbol = allLayers.find((l) => l.type === 'symbol')
-    const beforeId = firstSymbol ? firstSymbol.id : undefined
+    // 1. Terrain DEM elevation raster source
+    if (!map.getSource('resq-terrain-dem')) {
+      map.addSource('resq-terrain-dem', {
+        type: 'raster-dem',
+        tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        maxzoom: 14,
+      })
+    }
 
-    // 1. 3D buildings extrusion layer for 3D mode
-    if (modeRef.current === MAP_MODES.D3 && map.getSource('openmaptiles') && !map.getLayer('3d-buildings')) {
+    // 2. Hillshade Layer for 3D Terrain mode
+    if (!map.getLayer('resq-hillshade') && map.getSource('resq-terrain-dem')) {
       map.addLayer(
         {
-          id: '3d-buildings',
+          id: 'resq-hillshade',
+          type: 'hillshade',
+          source: 'resq-terrain-dem',
+          layout: { visibility: 'none' },
+          paint: {
+            'hillshade-exaggeration': 0.85,
+            'hillshade-shadow-color': '#334155',
+            'hillshade-highlight-color': '#ffffff',
+            'hillshade-accent-color': '#38bdf8',
+          },
+        },
+        'resq-background'
+      )
+    }
+
+    // 3. 3D Building Extrusion Layer
+    if (!map.getLayer('resq-3d-buildings') && map.getSource('openmaptiles')) {
+      map.addLayer(
+        {
+          id: 'resq-3d-buildings',
+          type: 'fill-extrusion',
           source: 'openmaptiles',
           'source-layer': 'building',
-          type: 'fill-extrusion',
           minzoom: 13,
+          layout: { visibility: 'none' },
           paint: {
             'fill-extrusion-color': [
               'interpolate',
               ['linear'],
-              ['get', 'render_height'],
-              0, '#e2e8f0',
-              20, '#cbd5e1',
-              50, '#94a3b8',
+              ['coalesce', ['get', 'render_height'], 10],
+              0,
+              '#cbd5e1',
+              20,
+              '#94a3b8',
+              50,
+              '#64748b',
+              100,
+              '#475569',
             ],
             'fill-extrusion-height': [
               'interpolate',
               ['linear'],
               ['zoom'],
-              13, 0,
-              15.5, ['coalesce', ['get', 'render_height'], 10],
+              13,
+              0,
+              14,
+              ['coalesce', ['get', 'render_height'], ['*', ['coalesce', ['get', 'levels'], 2], 4], 14],
             ],
-            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-            'fill-extrusion-opacity': 0.85,
+            'fill-extrusion-base': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              13,
+              0,
+              14,
+              ['coalesce', ['get', 'render_min_height'], 0],
+            ],
+            'fill-extrusion-opacity': 0.92,
           },
         },
-        beforeId,
+        beforeId
       )
     }
 
-    // 2. 500m RESQ Risk Grid Fill and Line Layers
+    // 4. Live 500m PostGIS Dynamic Risk Grid Hexagons
     if (!map.getSource('risk-grid-source')) {
       map.addSource('risk-grid-source', {
         type: 'geojson',
@@ -118,7 +178,7 @@ export function MapSurface({
           source: 'risk-grid-source',
           paint: getRiskFillStyle(),
         },
-        beforeId,
+        beforeId
       )
 
       map.addLayer(
@@ -128,7 +188,7 @@ export function MapSurface({
           source: 'risk-grid-source',
           paint: getRiskOutlineStyle(),
         },
-        beforeId,
+        beforeId
       )
 
       map.on('click', 'risk-grid-fill', (e) => {
@@ -146,7 +206,7 @@ export function MapSurface({
       })
     }
 
-    // 3. Selected Grid Cell Highlight Polygon
+    // 5. Selected Grid Cell Highlight Polygon
     if (!map.getSource('selected-grid-highlight-source')) {
       map.addSource('selected-grid-highlight-source', {
         type: 'geojson',
@@ -160,7 +220,7 @@ export function MapSurface({
           source: 'selected-grid-highlight-source',
           paint: getSelectedGridFillStyle(),
         },
-        beforeId,
+        beforeId
       )
 
       map.addLayer(
@@ -170,11 +230,11 @@ export function MapSurface({
           source: 'selected-grid-highlight-source',
           paint: getSelectedGridOutlineStyle(),
         },
-        beforeId,
+        beforeId
       )
     }
 
-    // 4. Prepared Safe & Risk Route Segments (Ready for routing phase)
+    // 6. Safe & Risk Route Segments
     if (!map.getSource('resq-route-source')) {
       const routeStyles = getRouteLayerStyles()
       map.addSource('resq-route-source', {
@@ -190,7 +250,7 @@ export function MapSurface({
           layout: routeStyles.layout,
           paint: routeStyles.glow,
         },
-        beforeId,
+        beforeId
       )
 
       map.addLayer(
@@ -201,7 +261,7 @@ export function MapSurface({
           layout: routeStyles.layout,
           paint: routeStyles.casing,
         },
-        beforeId,
+        beforeId
       )
 
       map.addLayer(
@@ -212,11 +272,11 @@ export function MapSurface({
           layout: routeStyles.layout,
           paint: routeStyles.fill,
         },
-        beforeId,
+        beforeId
       )
     }
 
-    // 5. Active Disaster Events Circle Markers
+    // 7. Active Disaster Events Circle Markers
     if (!map.getSource('active-events-source')) {
       map.addSource('active-events-source', {
         type: 'geojson',
@@ -275,7 +335,7 @@ export function MapSurface({
       })
     }
 
-    // 6. User Location WebGL Circle Layers (GPU-rendered fallback)
+    // 8. User Location WebGL Circle Layer
     if (!map.getSource('user-location-source')) {
       map.addSource('user-location-source', {
         type: 'geojson',
@@ -287,12 +347,12 @@ export function MapSurface({
         type: 'circle',
         source: 'user-location-source',
         paint: {
-          'circle-radius': 18,
+          'circle-radius': 24,
           'circle-color': '#2563eb',
-          'circle-opacity': 0.2,
-          'circle-stroke-width': 1.5,
+          'circle-opacity': 0.22,
+          'circle-stroke-width': 2,
           'circle-stroke-color': '#2563eb',
-          'circle-stroke-opacity': 0.5,
+          'circle-stroke-opacity': 0.6,
         },
       })
 
@@ -301,9 +361,9 @@ export function MapSurface({
         type: 'circle',
         source: 'user-location-source',
         paint: {
-          'circle-radius': 6.5,
+          'circle-radius': 9,
           'circle-color': '#2563eb',
-          'circle-stroke-width': 2.5,
+          'circle-stroke-width': 3,
           'circle-stroke-color': '#ffffff',
           'circle-opacity': 1,
         },
@@ -331,7 +391,7 @@ export function MapSurface({
         bounds.getSouth(),
         bounds.getEast(),
         bounds.getNorth(),
-        Math.round(map.getZoom()),
+        Math.round(map.getZoom())
       )
       if (geoJson && map.getSource('risk-grid-source')) {
         source.setData(geoJson)
@@ -359,7 +419,7 @@ export function MapSurface({
     }
   }, [])
 
-  // Helper to update or position the user location marker
+  // Helper to update or position the enlarged user location marker
   const updateLocationMarker = useCallback((loc, mapInstance = null) => {
     const map = mapInstance || mapRef.current
     if (!map) return
@@ -368,7 +428,6 @@ export function MapSurface({
       const lat = parseFloat(loc.lat)
       const lon = parseFloat(loc.lon)
 
-      // Update WebGL circle layer
       if (map.isStyleLoaded()) {
         const source = map.getSource('user-location-source')
         if (source) {
@@ -384,15 +443,16 @@ export function MapSurface({
         }
       }
 
-      // Create or reposition DOM marker with animated radar pulse
+      // Create or reposition enlarged high-visibility DOM marker
       if (!markerRef.current) {
         const el = document.createElement('div')
         el.className = 'resq-user-location-marker'
         el.innerHTML = `
-          <div style="position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
-            <div style="position:absolute; width:36px; height:36px; border-radius:50%; background:rgba(37,99,235,0.22); animation:pulseRing 2.2s infinite ease-out;"></div>
-            <div style="position:relative; width:14px; height:14px; border-radius:50%; background:#2563eb; border:2.5px solid #ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.25); z-index:2; display:flex; align-items:center; justify-content:center;">
-              <div style="width:3px; height:3px; border-radius:50%; background:#ffffff;"></div>
+          <div style="position:relative; width:52px; height:52px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
+            <div style="position:absolute; width:52px; height:52px; border-radius:50%; background:rgba(37,99,235,0.18); animation:pulseRing1 2.4s infinite cubic-bezier(0.1, 0.8, 0.3, 1);"></div>
+            <div style="position:absolute; width:38px; height:38px; border-radius:50%; background:rgba(37,99,235,0.25); animation:pulseRing2 2.4s infinite cubic-bezier(0.1, 0.8, 0.3, 1) 0.6s;"></div>
+            <div style="position:relative; width:22px; height:22px; border-radius:50%; background:#2563eb; border:3px solid #ffffff; box-shadow:0 0 16px rgba(37,99,235,0.6), 0 3px 10px rgba(0,0,0,0.3); z-index:2; display:flex; align-items:center; justify-content:center; animation:beaconGlow 2s infinite ease-in-out;">
+              <div style="width:6px; height:6px; border-radius:50%; background:#ffffff; box-shadow:0 0 4px #ffffff;"></div>
             </div>
           </div>
         `
@@ -424,7 +484,8 @@ export function MapSurface({
 
   // 1. Initialize MapLibre instance ONCE on mount
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return
+    if (!mapContainerRef.current) return
+    if (mapRef.current) return
 
     const initialStyle = getMapStyle(modeRef.current)
 
@@ -433,7 +494,10 @@ export function MapSurface({
       style: initialStyle,
       center: GUWAHATI_CENTER,
       zoom: DEFAULT_ZOOM,
-      pitch: modeRef.current === MAP_MODES.D3 ? 55 : 0,
+      minZoom: ZOOM_RANGE.min,
+      maxZoom: ZOOM_RANGE.max,
+      attributionControl: { compact: true },
+      maxPitch: 85,
     })
 
     viewportStore.setMapInstance(map)
@@ -499,11 +563,74 @@ export function MapSurface({
     }
   }, []) // Empty dependency array ensures MapLibre is never torn down and recreated
 
-  // 2. Handle Layer Style / Mode Changes smoothly without recreating the map
+  // 2. Handle Layer Style & 3D/Terrain Mode Changes dynamically
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
 
+    // Special handling for 3D and Terrain modes
+    if (mode === MAP_MODES.D3) {
+      if (map.isStyleLoaded()) {
+        if (map.getLayer('resq-3d-buildings')) {
+          map.setLayoutProperty('resq-3d-buildings', 'visibility', 'visible')
+        }
+        if (map.getLayer('resq-building-fill')) {
+          map.setLayoutProperty('resq-building-fill', 'visibility', 'none')
+        }
+        if (map.getLayer('resq-hillshade')) {
+          map.setLayoutProperty('resq-hillshade', 'visibility', 'none')
+        }
+      }
+      try {
+        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.2 })
+      } catch {
+        // DEM terrain fallback
+      }
+      map.easeTo({ pitch: 60, bearing: -20, duration: 800 })
+      return
+    }
+
+    if (mode === MAP_MODES.TERRAIN) {
+      if (map.isStyleLoaded()) {
+        if (map.getLayer('resq-hillshade')) {
+          map.setLayoutProperty('resq-hillshade', 'visibility', 'visible')
+        }
+        if (map.getLayer('resq-3d-buildings')) {
+          map.setLayoutProperty('resq-3d-buildings', 'visibility', 'none')
+        }
+        if (map.getLayer('resq-building-fill')) {
+          map.setLayoutProperty('resq-building-fill', 'visibility', 'visible')
+        }
+      }
+      try {
+        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.8 })
+      } catch {
+        // DEM terrain fallback
+      }
+      map.easeTo({ pitch: 52, bearing: 15, duration: 800 })
+      return
+    }
+
+    // Return from 3D/Terrain to 2D
+    try {
+      map.setTerrain(null)
+    } catch {
+      // Ignore
+    }
+    if (map.isStyleLoaded()) {
+      if (map.getLayer('resq-3d-buildings')) {
+        map.setLayoutProperty('resq-3d-buildings', 'visibility', 'none')
+      }
+      if (map.getLayer('resq-building-fill')) {
+        map.setLayoutProperty('resq-building-fill', 'visibility', 'visible')
+      }
+      if (map.getLayer('resq-hillshade')) {
+        map.setLayoutProperty('resq-hillshade', 'visibility', 'none')
+      }
+    }
+    map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
+
+    // If switching raster or distinct base style (e.g. Liberty or Satellite)
     const nextStyle = getMapStyle(mode)
     map.setStyle(nextStyle)
 
@@ -516,12 +643,6 @@ export function MapSurface({
         updateLocationMarker(selectedLocationRef.current, map)
       }
     })
-
-    if (mode === MAP_MODES.D3) {
-      map.easeTo({ pitch: 55, bearing: -15, duration: 800 })
-    } else {
-      map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
-    }
   }, [mode, mapReady, addCustomLayers, refreshViewportGrids, refreshActiveEvents, updateLocationMarker])
 
   // 3. Render Selected Grid Cell Highlight Polygon
@@ -558,33 +679,35 @@ export function MapSurface({
     }
   }, [selectedGridGeometry, selectedGridStatus, mapReady])
 
-  // 4. Update Location Pointer when selectedLocation updates
+  // 4. Update Marker Position When selectedLocation changes
   useEffect(() => {
     if (!mapReady) return
     updateLocationMarker(selectedLocation)
   }, [selectedLocation, mapReady, updateLocationMarker])
 
-  // 5. Render Physical Road Route and Fit Camera Bounds
+  // 5. Render Driving Route Line and Start/End Markers
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
 
     const applyRoute = () => {
-      const existingSource = map.getSource('resq-route-source')
+      const source = map.getSource('resq-route-source')
+      if (!source) return
 
       if (routeData && routeData.geometry && routeData.geometry.length > 0) {
-        addCustomLayers(map)
-        const activeSource = map.getSource('resq-route-source')
-        if (activeSource) {
-          activeSource.setData({
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: routeData.geometry,
+        source.setData({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: routeData.geometry,
+              },
+              properties: {},
             },
-            properties: {},
-          })
-        }
+          ],
+        })
 
         // Render Start (Origin A) Marker
         if (originMarkerRef.current) originMarkerRef.current.remove()
@@ -594,18 +717,18 @@ export function MapSurface({
         const endCoord = routeData.geometry[routeData.geometry.length - 1]
 
         const startEl = document.createElement('div')
-        startEl.style.width = '24px'
-        startEl.style.height = '24px'
+        startEl.style.width = '30px'
+        startEl.style.height = '30px'
         startEl.style.borderRadius = '50%'
         startEl.style.background = '#10b981'
         startEl.style.border = '3px solid #ffffff'
-        startEl.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)'
+        startEl.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)'
         startEl.style.display = 'flex'
         startEl.style.alignItems = 'center'
         startEl.style.justifyContent = 'center'
         startEl.style.color = '#ffffff'
         startEl.style.fontWeight = '800'
-        startEl.style.fontSize = '11px'
+        startEl.style.fontSize = '12.5px'
         startEl.style.fontFamily = 'system-ui, sans-serif'
         startEl.innerText = 'A'
 
@@ -614,18 +737,18 @@ export function MapSurface({
           .addTo(map)
 
         const endEl = document.createElement('div')
-        endEl.style.width = '24px'
-        endEl.style.height = '24px'
+        endEl.style.width = '30px'
+        endEl.style.height = '30px'
         endEl.style.borderRadius = '50%'
         endEl.style.background = '#ef4444'
         endEl.style.border = '3px solid #ffffff'
-        endEl.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)'
+        endEl.style.boxShadow = '0 4px 14px rgba(239, 68, 68, 0.45)'
         endEl.style.display = 'flex'
         endEl.style.alignItems = 'center'
         endEl.style.justifyContent = 'center'
         endEl.style.color = '#ffffff'
         endEl.style.fontWeight = '800'
-        endEl.style.fontSize = '11px'
+        endEl.style.fontSize = '12.5px'
         endEl.style.fontFamily = 'system-ui, sans-serif'
         endEl.innerText = 'B'
 
@@ -648,10 +771,10 @@ export function MapSurface({
 
         const isMobile = window.innerWidth <= 768
         const padding = isMobile
-          ? { top: 70, bottom: 260, left: 30, right: 30 }
-          : { top: 80, bottom: 80, left: 80, right: 440 }
+          ? { top: 60, bottom: 260, left: 20, right: 20 }
+          : { top: 80, bottom: 120, left: 340, right: 400 }
 
-        if (navigationMode === 'preview') {
+        if (navigationMode !== 'driving') {
           map.fitBounds(
             [
               [minLon, minLat],
@@ -660,15 +783,15 @@ export function MapSurface({
             {
               padding,
               maxZoom: 15,
-              duration: 1200,
-              essential: true,
+              duration: 800,
             }
           )
         }
       } else {
-        if (existingSource) {
-          existingSource.setData({ type: 'FeatureCollection', features: [] })
-        }
+        source.setData({
+          type: 'FeatureCollection',
+          features: [],
+        })
         if (originMarkerRef.current) {
           originMarkerRef.current.remove()
           originMarkerRef.current = null
@@ -685,11 +808,13 @@ export function MapSurface({
     } else {
       map.once('style.load', applyRoute)
     }
-  }, [routeData, navigationMode, mapReady, addCustomLayers])
+  }, [routeData, mapReady, navigationMode])
 
   return (
-    <div className={styles.wrapper}>
-      <div ref={mapContainerRef} className={styles.mapContainer} />
+    <div
+      ref={mapContainerRef}
+      style={{ width: '100%', height: '100%', position: 'relative' }}
+    >
       {children}
     </div>
   )
