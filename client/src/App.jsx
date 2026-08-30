@@ -6,6 +6,7 @@ import { ProtectedRoute } from './app/ProtectedRoute.jsx'
 import { AppShell } from './app/AppShell.jsx'
 import MapView from './views/MapView.jsx'
 import AboutView from './views/AboutView.jsx'
+import ResqView from './views/ResqView.jsx'
 import AdminView from './views/AdminView.jsx'
 import UnauthorizedView from './views/UnauthorizedView.jsx'
 
@@ -20,6 +21,16 @@ export default function App() {
             element={
               <AppShell>
                 <MapView />
+              </AppShell>
+            }
+          />
+
+          {/* RESQ Mode Live Safety & Disaster Tracking */}
+          <Route
+            path="/resq"
+            element={
+              <AppShell>
+                <ResqView />
               </AppShell>
             }
           />

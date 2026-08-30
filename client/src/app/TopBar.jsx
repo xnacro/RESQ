@@ -27,6 +27,7 @@ import styles from './TopBar.module.css'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Map', end: true },
+  { to: '/resq', label: 'RESQ Mode', end: false },
   { to: '/about', label: 'About', end: false },
 ]
 

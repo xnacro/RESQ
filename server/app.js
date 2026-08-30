@@ -9,7 +9,9 @@ import geocodeRoutes from "./routes/geocodeRoutes.js";
 import routeRoutes from "./routes/routeRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import damageRoutes from "./routes/damageRoutes.js";
+import resqSessionRoutes from "./routes/resqSessionRoutes.js";
 import { initializeUserSchema } from "./models/userModel.js";
+import { initializeSessionSchema } from "./models/resqSessionModel.js";
 import { startNewsScheduler } from "./services/news/newsSchedulerService.js";
 
 dotenv.config();
@@ -28,6 +30,7 @@ app.get("/", (req, res) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/damage", damageRoutes);
+app.use("/api/resq/session", resqSessionRoutes);
 app.use("/api/grid", gridRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/risk", riskRoutes);
@@ -39,6 +42,8 @@ app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   // Initialize authentication schema and demo users
   await initializeUserSchema();
+  // Initialize RESQ Mode session schema
+  await initializeSessionSchema();
   try {
     await pool.query("SELECT NOW()");
     console.log("Database connected successfully");
