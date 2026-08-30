@@ -1,4 +1,4 @@
-// RESQ Mode Main Operational View for Live Disaster Safety, GPS Tracking, Risk, Safety Timer, and Emergency SOS
+// RESQ Mode Main Operational View for Live Disaster Safety, GPS Tracking, Risk, Safety Timer, SOS, and Active Route Monitoring
 import { useState } from 'react'
 import {
   Shield,
@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Hourglass,
   Siren,
+  Route,
+  ArrowRight,
 } from 'lucide-react'
 import { MapSurface } from '../map/MapSurface.jsx'
 import { MAP_MODES } from '../map/mapStyles.js'
@@ -40,6 +42,8 @@ export function ResqView() {
     activeEvents,
     riskAlert,
     setRiskAlert,
+    activeRoute,
+    rerouteProposal,
     formattedTimeRemaining,
     isTimerWarning,
     isTimerExpired,
@@ -49,6 +53,8 @@ export function ResqView() {
     extendTimer,
     triggerSos,
     cancelSos,
+    detachRoute,
+    acceptReroute,
     startSession,
     stopSession,
   } = useResqMode()
@@ -122,6 +128,15 @@ export function ResqView() {
       await cancelSos('Resolved safely by operator')
     } catch (err) {
       setActionError(err.message || 'Failed to cancel SOS')
+    }
+  }
+
+  const handleAcceptReroute = async () => {
+    setActionError('')
+    try {
+      await acceptReroute()
+    } catch (err) {
+      setActionError(err.message || 'Failed to switch to alternative safe route')
     }
   }
 
@@ -371,6 +386,70 @@ export function ResqView() {
                 <Siren size={18} />
                 <span>DISPATCH EMERGENCY SOS</span>
               </button>
+            )}
+
+            {/* Proposed Reroute Alert Card */}
+            {rerouteProposal && (
+              <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 4px 16px rgba(245, 158, 11, 0.15)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 800, color: '#b45309' }}>
+                    <AlertTriangle size={16} />
+                    <span>SAFER REROUTE PROPOSED</span>
+                  </div>
+                  <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '6px' }}>
+                    RECOMMENDED
+                  </span>
+                </div>
+                <div style={{ fontSize: '12px', color: '#92400e', lineHeight: 1.45 }}>
+                  {rerouteProposal.reason || 'Hazard corridor detected ahead. A physical bypass with significantly lower risk has been computed.'}
+                </div>
+                <button
+                  type="button"
+                  style={{
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: '#d97706',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={handleAcceptReroute}
+                  disabled={isLoading}
+                >
+                  <span>Switch to Safe Route</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Active Route Corridor Status Card */}
+            {activeRoute && (
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '14px', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Route size={18} style={{ color: '#2563eb' }} />
+                  <div>
+                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
+                      Active Travel Route
+                    </div>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>
+                      Corridor Monitoring Active
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                  onClick={detachRoute}
+                >
+                  Detach
+                </button>
+              </div>
             )}
 
             {/* Risk Escalation Alert Banner */}

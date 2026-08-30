@@ -245,6 +245,79 @@ export async function registerResqTracker(sessionId, trackerName = 'Trusted Moni
   }
 }
 
+// 12. Attach Travel Route to Session for Corridor Risk Monitoring
+export async function attachResqSessionRoute({
+  sessionId,
+  origin,
+  destination,
+  routeGeometry,
+  distanceM,
+  durationS,
+  routeId,
+}) {
+  try {
+    const res = await fetch(`${API_BASE}/route/attach`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        sessionId,
+        origin,
+        destination,
+        routeGeometry,
+        distanceM,
+        durationS,
+        routeId,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to attach route')
+    }
+    return data
+  } catch (err) {
+    console.error('attachResqSessionRoute error:', err.message)
+    throw err
+  }
+}
+
+// 13. Detach Travel Route from Session
+export async function detachResqSessionRoute(sessionId) {
+  try {
+    const res = await fetch(`${API_BASE}/route/detach`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ sessionId }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to detach route')
+    }
+    return data
+  } catch (err) {
+    console.error('detachResqSessionRoute error:', err.message)
+    throw err
+  }
+}
+
+// 14. Execute Corridor Reroute for Active Session
+export async function executeResqSessionReroute(sessionId, currentPosition = null) {
+  try {
+    const res = await fetch(`${API_BASE}/route/reroute`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ sessionId, currentPosition }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to execute reroute')
+    }
+    return data
+  } catch (err) {
+    console.error('executeResqSessionReroute error:', err.message)
+    throw err
+  }
+}
+
 export default {
   startResqSession,
   stopResqSession,
@@ -257,4 +330,7 @@ export default {
   cancelResqSessionSos,
   getResqSessionTelemetry,
   registerResqTracker,
+  attachResqSessionRoute,
+  detachResqSessionRoute,
+  executeResqSessionReroute,
 }

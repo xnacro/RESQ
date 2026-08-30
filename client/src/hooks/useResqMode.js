@@ -1,4 +1,4 @@
-// Hook for RESQ Mode Session Lifecycle, Live GPS Tracking, 500m Grid, Risk, Safety Timer, and Realtime Sockets
+// Hook for RESQ Mode Session Lifecycle, Live GPS Tracking, 500m Grid, Risk, Safety Timer, Sockets, and Route Monitoring
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import {
@@ -11,6 +11,9 @@ import {
   updateResqSessionTimer,
   dispatchResqSessionSos,
   cancelResqSessionSos,
+  attachResqSessionRoute,
+  detachResqSessionRoute,
+  executeResqSessionReroute,
 } from '../services/resqApi.js'
 import { useAuth } from '../app/authContext.jsx'
 
@@ -52,6 +55,10 @@ export function useResqMode() {
   const [timeRemainingMs, setTimeRemainingMs] = useState(0)
   const [isCheckInPending, setIsCheckInPending] = useState(false)
 
+  // Active Route Corridor & Reroute States
+  const [activeRoute, setActiveRoute] = useState(null)
+  const [rerouteProposal, setRerouteProposal] = useState(null)
+
   const watchIdRef = useRef(null)
   const lastServerUpdateRef = useRef(0)
   const lastRecordedLocationRef = useRef(null)
@@ -71,6 +78,9 @@ export function useResqMode() {
           if (serverSession && serverSession.is_active && !isCancelled) {
             setSession(serverSession)
             setIsActive(true)
+            if (serverSession.metadata?.activeRoute) {
+              setActiveRoute(serverSession.metadata.activeRoute)
+            }
             localStorage.setItem(
               STORAGE_KEY,
               JSON.stringify({ sessionId: serverSession.session_id, timestamp: Date.now() })
@@ -88,6 +98,9 @@ export function useResqMode() {
             if (fetched && fetched.is_active && !isCancelled) {
               setSession(fetched)
               setIsActive(true)
+              if (fetched.metadata?.activeRoute) {
+                setActiveRoute(fetched.metadata.activeRoute)
+              }
             } else {
               localStorage.removeItem(STORAGE_KEY)
               if (!isCancelled) {
@@ -145,6 +158,12 @@ export function useResqMode() {
       }
       if (payload.activeEvents) {
         setActiveEvents(payload.activeEvents)
+      }
+      if (payload.route) {
+        setActiveRoute(payload.route)
+      }
+      if (payload.routeMonitoring?.rerouteRecommended) {
+        setRerouteProposal(payload.routeMonitoring)
       }
     })
 
@@ -233,6 +252,9 @@ export function useResqMode() {
           if (updateRes.grid) setGridData(updateRes.grid)
           if (updateRes.risk) setRiskData(updateRes.risk)
           if (updateRes.activeEvents) setActiveEvents(updateRes.activeEvents)
+          if (updateRes.routeMonitoring?.rerouteRecommended) {
+            setRerouteProposal(updateRes.routeMonitoring)
+          }
           if (updateRes.riskTransition) {
             setRiskTransition(updateRes.riskTransition)
             if (updateRes.riskTransition.isEscalation) {
@@ -421,7 +443,76 @@ export function useResqMode() {
     [sessionId]
   )
 
-  // 10. Start a new RESQ Safety Session
+  // 10. Attach Route to Session
+  const attachRoute = useCallback(
+    async (routePlan) => {
+      if (!sessionId || !routePlan) return
+
+      try {
+        const res = await attachResqSessionRoute({
+          sessionId,
+          origin: routePlan.origin,
+          destination: routePlan.destination,
+          routeGeometry: routePlan.geometry || routePlan.routeGeometry,
+          distanceM: routePlan.distance,
+          durationS: routePlan.duration,
+          routeId: routePlan.routeId,
+        })
+
+        if (res && res.session) {
+          setSession(res.session)
+          setActiveRoute(routePlan)
+        }
+        return res
+      } catch (err) {
+        setError(err.message || 'Failed to attach route')
+        throw err
+      }
+    },
+    [sessionId]
+  )
+
+  // 11. Detach Route from Session
+  const detachRoute = useCallback(async () => {
+    if (!sessionId) return
+
+    try {
+      const res = await detachResqSessionRoute(sessionId)
+      if (res && res.session) {
+        setSession(res.session)
+        setActiveRoute(null)
+        setRerouteProposal(null)
+      }
+      return res
+    } catch (err) {
+      setError(err.message || 'Failed to detach route')
+      throw err
+    }
+  }, [sessionId])
+
+  // 12. Accept Proposed Dynamic Reroute
+  const acceptReroute = useCallback(async () => {
+    if (!sessionId) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const res = await executeResqSessionReroute(sessionId)
+      if (res && res.success && res.newRoute) {
+        setActiveRoute(res.newRoute)
+        setRerouteProposal(null)
+      }
+      return res
+    } catch (err) {
+      setError(err.message || 'Failed to execute alternate reroute')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [sessionId])
+
+  // 13. Start a new RESQ Safety Session
   const startSession = useCallback(
     async ({ safetyTimerMinutes = 30, trustedContacts = [] } = {}) => {
       setIsLoading(true)
@@ -459,7 +550,7 @@ export function useResqMode() {
     []
   )
 
-  // 11. Stop active RESQ Safety Session
+  // 14. Stop active RESQ Safety Session
   const stopSession = useCallback(async () => {
     if (!sessionId) return
 
@@ -484,6 +575,8 @@ export function useResqMode() {
       setRiskData(null)
       setActiveEvents([])
       setRiskAlert(null)
+      setActiveRoute(null)
+      setRerouteProposal(null)
       setTimeRemainingMs(0)
     } catch (err) {
       setError(err.message || 'Failed to end RESQ Mode session')
@@ -519,6 +612,8 @@ export function useResqMode() {
     activeEvents,
     riskTransition,
     riskAlert,
+    activeRoute,
+    rerouteProposal,
     setRiskAlert,
     timeRemainingMs,
     formattedTimeRemaining,
@@ -530,6 +625,9 @@ export function useResqMode() {
     extendTimer,
     triggerSos,
     cancelSos,
+    attachRoute,
+    detachRoute,
+    acceptReroute,
     startSession,
     stopSession,
     setSession,

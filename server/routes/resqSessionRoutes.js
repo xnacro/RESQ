@@ -1,4 +1,4 @@
-// RESQ Mode Session Lifecycle, Live Risk Monitoring, Safety Timer, and Realtime WebSocket Broadcasts
+// RESQ Mode Session Lifecycle, Live Risk Monitoring, Safety Timer, and Route Monitoring
 import express from "express";
 import crypto from "crypto";
 import pool from "../config/db.js";
@@ -16,6 +16,13 @@ import {
   broadcastRiskAlert,
   broadcastSosAlert,
 } from "../services/socketService.js";
+import {
+  registerActiveRouteSession,
+  updateSessionProgress,
+  getSessionMonitoringStatus,
+  executeDynamicReroute,
+  cleanupActiveSession,
+} from "../services/routing/routeMonitorService.js";
 
 const router = express.Router();
 
@@ -40,6 +47,7 @@ router.post("/start", authenticate, async (req, res) => {
       // Auto-end the existing session and start a new clean session
       await endResqSession(existingActive.session_id, userId);
       broadcastSessionUpdate(existingActive.session_id, { type: "SESSION_ENDED" });
+      cleanupActiveSession(existingActive.session_id);
     }
 
     const session = await createResqSession({
@@ -182,6 +190,17 @@ router.post("/location", authenticate, async (req, res) => {
 
     const updatedSession = await updateResqSession(sessionId, sessionUpdates);
 
+    // Active Route Corridor Progress & Reroute Evaluation
+    let routeMonitoring = null;
+    try {
+      const progressRes = updateSessionProgress(sessionId, [parsedLon, parsedLat]);
+      if (progressRes.success) {
+        routeMonitoring = getSessionMonitoringStatus(sessionId);
+      }
+    } catch (routeErr) {
+      // Ignored if session is not currently navigating a route
+    }
+
     // Broadcast Realtime Telemetry Update via Socket.IO
     broadcastSessionUpdate(sessionId, {
       type: "LOCATION_UPDATE",
@@ -199,6 +218,7 @@ router.post("/location", authenticate, async (req, res) => {
         dynamicRisk,
       },
       activeEvents,
+      routeMonitoring,
     });
 
     if (isEscalation) {
@@ -238,6 +258,7 @@ router.post("/location", authenticate, async (req, res) => {
         currentStatus: riskStatus,
         isEscalation,
       },
+      routeMonitoring,
     });
   } catch (err) {
     console.error("Failed to update session location:", err);
@@ -529,7 +550,211 @@ router.post("/sos/cancel", authenticate, async (req, res) => {
   }
 });
 
-// 7. Get Live Telemetry Snapshot for Authorized / Trusted Trackers (Public UUID URL)
+// 7. Attach Active Travel Route to Session for Corridor Risk Monitoring
+router.post("/route/attach", authenticate, async (req, res) => {
+  try {
+    const { sessionId, origin, destination, routeGeometry, distanceM, durationS, routeId } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId || !origin || !destination || !routeGeometry) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID, origin, destination, and route geometry are required",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized to attach route to this session",
+      });
+    }
+
+    const activeRouteId = routeId || `resq_nav_${Date.now()}`;
+
+    // Register with route monitoring engine
+    await registerActiveRouteSession({
+      sessionId,
+      routeId: activeRouteId,
+      routeGeometry,
+      origin,
+      destination,
+      vehicle: "car",
+    });
+
+    const routeMeta = {
+      routeId: activeRouteId,
+      origin,
+      destination,
+      distanceM,
+      durationS,
+      attachedAt: new Date().toISOString(),
+    };
+
+    const updates = {
+      route_id: activeRouteId,
+      metadata: {
+        ...(session.metadata || {}),
+        activeRoute: routeMeta,
+      },
+    };
+
+    const updatedSession = await updateResqSession(sessionId, updates);
+
+    // Broadcast Realtime Route Attachment
+    broadcastSessionUpdate(sessionId, {
+      type: "ROUTE_ATTACHED",
+      route: routeMeta,
+      session: updatedSession,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Active travel route attached to RESQ Mode session",
+      sessionId,
+      routeId: activeRouteId,
+      session: updatedSession,
+    });
+  } catch (err) {
+    console.error("Route attach error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error attaching navigation route",
+    });
+  }
+});
+
+// 8. Detach / Conclude Active Travel Route from Session
+router.post("/route/detach", authenticate, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID is required",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
+
+    cleanupActiveSession(sessionId);
+
+    const updates = {
+      route_id: null,
+      metadata: {
+        ...(session.metadata || {}),
+        activeRoute: null,
+      },
+    };
+
+    const updatedSession = await updateResqSession(sessionId, updates);
+
+    broadcastSessionUpdate(sessionId, {
+      type: "ROUTE_DETACHED",
+      session: updatedSession,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Navigation route detached successfully",
+      sessionId,
+      session: updatedSession,
+    });
+  } catch (err) {
+    console.error("Route detach error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error detaching route",
+    });
+  }
+});
+
+// 9. Execute Dynamic Corridor Reroute for Active Session
+router.post("/route/reroute", authenticate, async (req, res) => {
+  try {
+    const { sessionId, currentPosition } = req.body;
+    const userId = req.user.id;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID is required to reroute",
+      });
+    }
+
+    const session = await findResqSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "RESQ Mode session not found",
+      });
+    }
+
+    if (session.user_id !== userId && req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
+
+    const pos = currentPosition || (session.current_lon && session.current_lat ? [session.current_lon, session.current_lat] : null);
+    const reroutePlan = await executeDynamicReroute(sessionId, pos);
+
+    if (reroutePlan.success && reroutePlan.newRoute) {
+      const updates = {
+        route_id: reroutePlan.routeId,
+        metadata: {
+          ...(session.metadata || {}),
+          activeRoute: {
+            routeId: reroutePlan.routeId,
+            distanceM: reroutePlan.newRoute.distance,
+            durationS: reroutePlan.newRoute.duration,
+            reroutedAt: new Date().toISOString(),
+          },
+        },
+      };
+      await updateResqSession(sessionId, updates);
+
+      broadcastSessionUpdate(sessionId, {
+        type: "ROUTE_REROUTED",
+        reroutePlan,
+      });
+    }
+
+    return res.status(200).json(reroutePlan);
+  } catch (err) {
+    console.error("Session reroute error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error calculating alternate route",
+    });
+  }
+});
+
+// 10. Get Live Telemetry Snapshot for Authorized / Trusted Trackers (Public UUID URL)
 router.get("/:sessionId/telemetry", async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -592,6 +817,8 @@ router.get("/:sessionId/telemetry", async (req, res) => {
         staticRisk: session.static_risk || 24.8,
         dynamicRisk: session.dynamic_risk || 0,
         riskConfidence: session.risk_confidence || 0.95,
+        routeId: session.route_id,
+        activeRoute: session.metadata?.activeRoute || null,
         emergency: session.metadata?.emergency || null,
       },
       geometry,
@@ -606,7 +833,7 @@ router.get("/:sessionId/telemetry", async (req, res) => {
   }
 });
 
-// 8. Register Trusted Tracker Heartbeat
+// 11. Register Trusted Tracker Heartbeat
 router.post("/:sessionId/track", async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -634,7 +861,7 @@ router.post("/:sessionId/track", async (req, res) => {
   }
 });
 
-// 9. Stop / Deactivate an active RESQ Mode Session
+// 12. Stop / Deactivate an active RESQ Mode Session
 router.post("/stop", authenticate, async (req, res) => {
   try {
     const { sessionId } = req.body;
@@ -662,6 +889,7 @@ router.post("/stop", authenticate, async (req, res) => {
       });
     }
 
+    cleanupActiveSession(sessionId);
     const endedSession = await endResqSession(sessionId, session.user_id);
 
     // Broadcast Realtime Session Ended Update
@@ -685,7 +913,7 @@ router.post("/stop", authenticate, async (req, res) => {
   }
 });
 
-// 10. Get Active Session for the Authenticated User
+// 13. Get Active Session for the Authenticated User
 router.get("/active/me", authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -714,7 +942,7 @@ router.get("/active/me", authenticate, async (req, res) => {
   }
 });
 
-// 11. Read Session Details by Session ID
+// 14. Read Session Details by Session ID
 router.get("/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
