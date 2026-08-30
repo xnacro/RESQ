@@ -1,5 +1,7 @@
+// TopBar navigation header with search, live status, and emergency actions
+import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { Search, Siren } from 'lucide-react'
+import { Search, Siren, Bell, Shield, Radio } from 'lucide-react'
 import { Button, TextField } from '../ui/index.js'
 import { cx } from '../lib/cx.js'
 import { BrandMark } from './BrandMark.jsx'
@@ -10,19 +12,42 @@ const NAV_ITEMS = [
   { to: '/about', label: 'About', end: false },
 ]
 
-export function TopBar({ onSosOpen, showSearch = true }) {
+export function TopBar({ onSosOpen, showSearch = true, onSearchSubmit, onSearchChange, searchValue = '' }) {
+  const [query, setQuery] = useState(searchValue)
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && onSearchSubmit) {
+      onSearchSubmit(query)
+    }
+  }
+
+  const handleChange = (e) => {
+    const val = e.target.value
+    setQuery(val)
+    if (onSearchChange) onSearchChange(val)
+  }
+
   return (
     <header className={styles.bar}>
-      <Link to="/" className={styles.brand}>
-        <BrandMark size={22} />
-        <span className={styles.brandName}>resQ</span>
-      </Link>
+      <div className={styles.brandWrapper}>
+        <Link to="/" className={styles.brand}>
+          <BrandMark size={20} />
+          <span className={styles.brandName}>RESQ</span>
+        </Link>
+        <div className={styles.liveBadge}>
+          <span className={styles.liveDot} />
+          <span className={styles.liveText}>LIVE</span>
+        </div>
+      </div>
 
       {showSearch && (
         <div className={styles.search}>
           <TextField
             icon={Search}
-            placeholder="Search any place, district or area in Assam and Meghalaya"
+            value={query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Search place, district, bridge, or grid ID (e.g. Guwahati, Boko, AS_00239973)"
             aria-label="Search location"
             controlClassName={styles.searchControl}
           />
@@ -43,8 +68,13 @@ export function TopBar({ onSosOpen, showSearch = true }) {
           ))}
         </nav>
 
+        <button type="button" className={styles.iconBtn} aria-label="Notifications" title="Disaster Bulletins">
+          <Bell size={17} />
+          <span className={styles.alertDot} />
+        </button>
+
         <Button variant="emergency" icon={Siren} onClick={onSosOpen} className={styles.sos}>
-          <span className={styles.sosLabel}>resQ SOS</span>
+          <span className={styles.sosLabel}>RESQ SOS</span>
         </Button>
       </div>
     </header>

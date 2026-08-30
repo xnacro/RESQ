@@ -1,138 +1,172 @@
-/* Sits directly on the page frame, so it uses the page colour set */
+/* TopBar CSS Module */
+
 .bar {
-  position: relative;
-  z-index: var(--z-topbar);
-  flex: none;
-  height: var(--topbar-h);
   display: flex;
   align-items: center;
-  gap: var(--sp-5);
+  justify-content: space-between;
+  height: var(--topbar-h);
   padding: 0 var(--sp-4);
-  background: transparent;
-  color: var(--page-text);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  z-index: var(--z-topbar);
+  gap: var(--sp-4);
+}
+
+.brandWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  flex: none;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-lg);
+  letter-spacing: -0.02em;
 }
 
 .brandName {
-  font-size: var(--fs-md);
-  font-weight: var(--fw-semibold);
-  letter-spacing: -0.02em;
-  color: var(--page-text);
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: var(--risk-low-subtle);
+  border: 1px solid var(--risk-low-border);
+  border-radius: var(--r-pill);
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--risk-low);
+  box-shadow: 0 0 6px var(--risk-low);
+  animation: pulseLive 2s infinite ease-in-out;
+}
+
+.liveText {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  color: var(--risk-low);
+  letter-spacing: 0.05em;
+}
+
+@keyframes pulseLive {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .search {
   flex: 1;
-  max-width: 560px;
+  max-width: 580px;
   margin: 0 auto;
 }
 
 .searchControl {
-  height: 38px;
-  background: var(--page-surface);
-  border-color: var(--page-border);
-  color: var(--page-text);
-}
-
-.searchControl:hover {
-  border-color: var(--page-text-muted);
+  border-radius: var(--r-pill) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--line-strong) !important;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--dur) var(--ease);
 }
 
 .searchControl:focus-within {
-  background: var(--page-surface-hover);
-  border-color: var(--page-text);
-}
-
-.searchControl input {
-  color: var(--page-text);
-}
-
-.searchControl input::placeholder {
-  color: var(--page-text-muted);
-}
-
-.searchControl svg {
-  color: var(--page-text-muted);
+  border-color: var(--accent) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
 }
 
 .right {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  flex: none;
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .nav {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: 3px;
-  background: var(--page-surface);
-  border: 1px solid var(--page-border);
-  border-radius: var(--r-md);
 }
 
 .navLink {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 var(--sp-4);
-  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
-  color: var(--page-text-muted);
-  transition:
-    color var(--dur-fast) var(--ease),
-    background var(--dur-fast) var(--ease);
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--r-md);
+  transition: all var(--dur) var(--ease);
 }
 
 .navLink:hover {
-  color: var(--page-text);
+  color: var(--text);
+  background: var(--surface-sunken);
 }
 
 .navLinkActive {
-  color: var(--page-bg);
-  background: var(--page-text);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  font-weight: var(--fw-semibold);
+}
+
+.iconBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.iconBtn:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.alertDot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--emergency);
+  border: 1.5px solid #ffffff;
 }
 
 .sos {
-  letter-spacing: 0.03em;
-  box-shadow: 0 2px 8px rgba(12, 10, 7, 0.35);
+  border-radius: var(--r-pill) !important;
+  font-weight: var(--fw-bold) !important;
+  padding: 0 var(--sp-4) !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
 }
 
-@media (max-width: 1023px) {
-  .bar {
-    gap: var(--sp-3);
-  }
-
-  .search {
-    max-width: none;
-  }
-}
-
-@media (max-width: 767px) {
-  .bar {
-    gap: var(--sp-2);
-    padding: 0 var(--sp-2) 0 var(--sp-3);
-  }
-
-  .nav,
+@media (max-width: 768px) {
   .search {
     display: none;
   }
-
-  .brandName {
-    font-size: var(--fs-base);
+  .nav {
+    display: none;
   }
-}
-
-@media (max-width: 400px) {
   .sosLabel {
     display: none;
   }
