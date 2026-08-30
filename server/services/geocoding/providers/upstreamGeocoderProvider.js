@@ -1,9 +1,9 @@
 // Internal Geocoding Provider Adapter
-// Connects to internal composite pipeline (/api/geocoder/search & /api/geocoder/reverse)
+// Connects to internal composite pipeline with resilient fallback
 // Resolves locations across Assam, Meghalaya, and national transit corridors with schema normalization
 
 const DEFAULT_PROVIDER_URL = "https://surakshaai.org/api/geocoder";
-const DEFAULT_TIMEOUT_MS = 4000;
+const DEFAULT_TIMEOUT_MS = 2500;
 
 // Retrieves configured provider base URL
 function getProviderBaseUrl() {
@@ -53,7 +53,6 @@ function normalizeCandidate(raw) {
   const name = (raw.name || raw.displayName || raw.address || "Unknown Location").trim();
   const { district, state } = extractStateAndDistrict(raw);
 
-  // Map 0-100 score / validation score to 0.0 - 1.0 confidence range
   let rawScore = raw.score;
   if (rawScore == null && raw.validation && raw.validation.score != null) {
     rawScore = raw.validation.score;
@@ -77,10 +76,124 @@ function normalizeCandidate(raw) {
   };
 }
 
-// Executes forward location search against internal provider
+// Secondary fallback geocoding provider using Nominatim
+async function searchNominatim(cleanQuery) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanQuery)}&format=json&limit=8&addressdetails=1&countrycodes=in&viewbox=89.0,28.5,97.5,24.0&bounded=0`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "RESQ-Disaster-Intelligence/1.0 (contact@resq.demo)",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return [];
+    const items = await response.json();
+    if (!Array.isArray(items)) return [];
+
+    return items
+      .map((item) => {
+        const addr = item.address || {};
+        const district =
+          addr.state_district ||
+          addr.county ||
+          addr.city ||
+          addr.town ||
+          addr.subdistrict ||
+          "";
+        const state = addr.state || "Assam";
+        const name = item.name || item.display_name.split(",")[0].trim();
+        const lat = parseFloat(item.lat);
+        const lon = parseFloat(item.lon);
+
+        if (isNaN(lat) || isNaN(lon)) return null;
+
+        return {
+          name,
+          displayName: item.display_name,
+          latitude: lat,
+          longitude: lon,
+          lat,
+          lon,
+          state,
+          district,
+          pincode: addr.postcode || null,
+          placeType: item.type || item.class || "locality",
+          confidence: item.importance ? Math.min(0.98, item.importance + 0.5) : 0.85,
+        };
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Secondary fallback reverse geocoding provider using Nominatim
+async function reverseNominatim(latitude, longitude) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "RESQ-Disaster-Intelligence/1.0 (contact@resq.demo)",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return null;
+    const item = await response.json();
+    if (!item || !item.lat || !item.lon) return null;
+
+    const addr = item.address || {};
+    const district =
+      addr.state_district ||
+      addr.county ||
+      addr.city ||
+      addr.town ||
+      addr.subdistrict ||
+      "";
+    const state = addr.state || "Assam";
+    const name = item.name || item.display_name.split(",")[0].trim();
+    const lat = parseFloat(item.lat);
+    const lon = parseFloat(item.lon);
+
+    if (isNaN(lat) || isNaN(lon)) return null;
+
+    return {
+      name,
+      displayName: item.display_name,
+      latitude: lat,
+      longitude: lon,
+      lat,
+      lon,
+      state,
+      district,
+      pincode: addr.postcode || null,
+      placeType: item.type || item.class || "locality",
+      confidence: 0.90,
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Executes forward location search against internal provider with fallback
 export const search = async (query, options = {}) => {
   const providerBase = getProviderBaseUrl();
-  if (!providerBase || !query || typeof query !== "string") {
+  if (!query || typeof query !== "string") {
     return [];
   }
 
@@ -91,55 +204,59 @@ export const search = async (query, options = {}) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  let results = [];
+
   try {
-    const baseUrl = providerBase.replace(/\/+$/, "");
-    const searchUrl = new URL(`${baseUrl}/search`);
-    searchUrl.searchParams.set("q", cleanQuery);
+    if (providerBase) {
+      const baseUrl = providerBase.replace(/\/+$/, "");
+      const searchUrl = new URL(`${baseUrl}/search`);
+      searchUrl.searchParams.set("q", cleanQuery);
 
-    const response = await fetch(searchUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "User-Agent": "RESQ-Disaster-Platform/1.0",
-      },
-      signal: controller.signal,
-    });
+      const response = await fetch(searchUrl.toString(), {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "User-Agent": "RESQ-Disaster-Platform/1.0",
+        },
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      return [];
-    }
+      if (response.ok) {
+        const payload = await response.json();
+        const rawItems = Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload.candidates)
+            ? payload.candidates
+            : Array.isArray(payload)
+              ? payload
+              : [];
 
-    const payload = await response.json();
-    const rawItems = Array.isArray(payload.data)
-      ? payload.data
-      : Array.isArray(payload.candidates)
-        ? payload.candidates
-        : Array.isArray(payload)
-          ? payload
-          : [];
-
-    const normalized = [];
-    for (const item of rawItems) {
-      const candidate = normalizeCandidate(item);
-      if (candidate) {
-        normalized.push(candidate);
+        for (const item of rawItems) {
+          const candidate = normalizeCandidate(item);
+          if (candidate) {
+            results.push(candidate);
+          }
+        }
       }
     }
-
-    return normalized;
-  } catch (error) {
-    // Network errors or timeouts are caught safely
-    return [];
+  } catch {
+    // Network errors or timeouts fall through to backup resolver
   } finally {
     clearTimeout(timeoutId);
   }
+
+  if (results.length === 0) {
+    results = await searchNominatim(cleanQuery);
+  }
+
+  return results;
 };
 
-// Executes reverse geocoding against internal provider
+// Executes reverse geocoding against internal provider with fallback
 export const reverse = async (latitude, longitude, options = {}) => {
   const providerBase = getProviderBaseUrl();
-  if (!providerBase || isNaN(latitude) || isNaN(longitude)) {
+  if (isNaN(latitude) || isNaN(longitude)) {
     return null;
   }
 
@@ -148,44 +265,45 @@ export const reverse = async (latitude, longitude, options = {}) => {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const baseUrl = providerBase.replace(/\/+$/, "");
-    const reverseUrl = new URL(`${baseUrl}/reverse`);
-    reverseUrl.searchParams.set("lat", String(latitude));
-    reverseUrl.searchParams.set("lng", String(longitude));
+    if (providerBase) {
+      const baseUrl = providerBase.replace(/\/+$/, "");
+      const reverseUrl = new URL(`${baseUrl}/reverse`);
+      reverseUrl.searchParams.set("lat", String(latitude));
+      reverseUrl.searchParams.set("lng", String(longitude));
 
-    const response = await fetch(reverseUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "User-Agent": "RESQ-Disaster-Platform/1.0",
-      },
-      signal: controller.signal,
-    });
+      const response = await fetch(reverseUrl.toString(), {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "User-Agent": "RESQ-Disaster-Platform/1.0",
+        },
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      return null;
+      if (response.ok) {
+        const payload = await response.json();
+        const rawItems = Array.isArray(payload.data)
+          ? payload.data
+          : payload.data
+            ? [payload.data]
+            : Array.isArray(payload)
+              ? payload
+              : [payload];
+
+        if (rawItems.length > 0) {
+          const candidate = normalizeCandidate(rawItems[0]);
+          if (candidate) return candidate;
+        }
+      }
     }
-
-    const payload = await response.json();
-    const rawItems = Array.isArray(payload.data)
-      ? payload.data
-      : payload.data
-        ? [payload.data]
-        : Array.isArray(payload)
-          ? payload
-          : [payload];
-
-    if (rawItems.length > 0) {
-      return normalizeCandidate(rawItems[0]);
-    }
-
-    return null;
-  } catch (error) {
-    return null;
+  } catch {
+    // Falls through to fallback reverse
   } finally {
     clearTimeout(timeoutId);
   }
+
+  return await reverseNominatim(latitude, longitude);
 };
 
 export default {
