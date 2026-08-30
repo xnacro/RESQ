@@ -1,3 +1,4 @@
+// Viewport context provider for map projection, center, and zoom synchronization
 import { useCallback, useMemo, useState } from 'react'
 import { DEFAULT_ZOOM, GUWAHATI_CENTER, REGION_BOUNDS, ZOOM_RANGE } from './constants.js'
 import { createProjection } from './projection.js'
@@ -23,6 +24,20 @@ export function MapViewportProvider({ children, center = GUWAHATI_CENTER, zoom =
     () => createProjection({ center: view.center, zoom: view.zoom, width: size.width, height: size.height }),
     [view.center, view.zoom, size.width, size.height],
   )
+
+  const setCenter = useCallback((nextCenter) => {
+    setView((prev) => ({
+      ...prev,
+      center: clampCenter(nextCenter),
+    }))
+  }, [])
+
+  const setZoom = useCallback((nextZoom) => {
+    setView((prev) => ({
+      ...prev,
+      zoom: clamp(nextZoom, ZOOM_RANGE.min, ZOOM_RANGE.max),
+    }))
+  }, [])
 
   const panBy = useCallback((dx, dy) => {
     setView((prev) => {
@@ -57,8 +72,19 @@ export function MapViewportProvider({ children, center = GUWAHATI_CENTER, zoom =
   const reset = useCallback(() => setView({ center: GUWAHATI_CENTER, zoom: DEFAULT_ZOOM }), [])
 
   const value = useMemo(
-    () => ({ ...view, size, projection, setSize, panBy, zoomBy, flyTo, reset }),
-    [view, size, projection, panBy, zoomBy, flyTo, reset],
+    () => ({
+      ...view,
+      size,
+      projection,
+      setSize,
+      setCenter,
+      setZoom,
+      panBy,
+      zoomBy,
+      flyTo,
+      reset,
+    }),
+    [view, size, projection, setCenter, setZoom, panBy, zoomBy, flyTo, reset],
   )
 
   return (
@@ -67,3 +93,5 @@ export function MapViewportProvider({ children, center = GUWAHATI_CENTER, zoom =
     </ViewportContext.Provider>
   )
 }
+
+export default MapViewportProvider

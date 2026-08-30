@@ -299,8 +299,8 @@ export function MapSurface({
     map.on('move', () => {
       const c = map.getCenter()
       const z = map.getZoom()
-      setCenter([c.lng, c.lat])
-      setZoom(z)
+      if (typeof setCenter === 'function') setCenter([c.lng, c.lat])
+      if (typeof setZoom === 'function') setZoom(z)
     })
 
     map.on('moveend', () => {
