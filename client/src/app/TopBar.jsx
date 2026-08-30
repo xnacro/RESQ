@@ -14,14 +14,12 @@ import {
   Plus,
   Eye,
   Radio,
-  LogIn,
 } from 'lucide-react'
 import { TextField, Badge } from '../ui/index.js'
 import { cx } from '../lib/cx.js'
 import { BrandMark } from './BrandMark.jsx'
 import { searchGeocode } from '../services/api.js'
 import { useAuth } from './authContext.jsx'
-import { AuthModal } from './AuthModal.jsx'
 import { UserProfileModal } from './UserProfileModal.jsx'
 import { DamageReportModal } from '../panels/DamageReportModal.jsx'
 import { EmergencyBroadcastModal } from '../panels/EmergencyBroadcastModal.jsx'
@@ -33,7 +31,7 @@ const NAV_ITEMS = [
 ]
 
 export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
-  const { user, isAdmin, canEdit, isViewer, openAuthModal } = useAuth()
+  const { user, isAdmin, canEdit, isViewer } = useAuth()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isSosOpen, setIsSosOpen] = useState(false)
@@ -273,11 +271,7 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
           className={styles.sos}
           onClick={() => {
             if (onSosOpen) onSosOpen()
-            if (!user) {
-              openAuthModal('login')
-            } else {
-              setIsSosOpen(true)
-            }
+            setIsSosOpen(true)
           }}
           title="Broadcast Emergency Disaster Alert"
           aria-label="Emergency Alert"
@@ -287,9 +281,6 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
           <span className={styles.sosLabel}>Emergency Alert</span>
         </button>
       </div>
-
-      {/* In-Dashboard Authentication Modal */}
-      <AuthModal />
 
       {/* Profile & Security Drawer */}
       <UserProfileModal

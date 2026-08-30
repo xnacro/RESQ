@@ -1,7 +1,6 @@
-// RESQ Authentication System
-// Reference-based implementation with clean GIS styling, density, and typography
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+// RESQ Authentication System - Exact Design Reference Modal Overlay on Live Map Dashboard
+
+import { useState, useRef } from 'react'
 import {
   Shield,
   Mail,
@@ -22,18 +21,7 @@ import { useAuth } from '../app/authContext.jsx'
 import styles from './LoginView.module.css'
 
 export function LoginView({ initialMode = 'login' }) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { login, register, isAuthenticated } = useAuth()
-
-  // Navigation redirect after login
-  const from = location.state?.from?.pathname || '/'
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true })
-    }
-  }, [isAuthenticated, navigate, from])
+  const { login, register } = useAuth()
 
   // Mode: 'login' | 'register' | 'forgot' | 'reset'
   const [mode, setMode] = useState(initialMode)
@@ -45,7 +33,7 @@ export function LoginView({ initialMode = 'login' }) {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe] = useState(true)
+  const [rememberMe, setRememberMe] = useState(true)
 
   // Register form state (Step 1)
   const [fullName, setFullName] = useState('')
@@ -76,29 +64,17 @@ export function LoginView({ initialMode = 'login' }) {
   const [generalSuccess, setGeneralSuccess] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
 
-  // Auto-detect reset token in query string if present
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const token = params.get('resetToken')
-    if (token) {
-      setResetToken(token)
-      setMode('reset')
-    }
-  }, [])
-
   // Profile photo upload handler
   const handlePhotoSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
     if (!validTypes.includes(file.type)) {
       setGeneralError('Please upload a valid image file (JPG, PNG, or WEBP).')
       return
     }
 
-    // Validate size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setGeneralError('Profile image size must be under 5MB.')
       return
@@ -111,23 +87,6 @@ export function LoginView({ initialMode = 'login' }) {
     }
     reader.readAsDataURL(file)
   }
-
-  // Password strength calculation
-  const getPasswordStrength = (pwd) => {
-    if (!pwd) return { score: 0, text: 'No password' }
-    let score = 0
-    if (pwd.length >= 8) score += 1
-    if (/[A-Z]/.test(pwd)) score += 1
-    if (/[a-z]/.test(pwd)) score += 1
-    if (/\d/.test(pwd)) score += 1
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1
-
-    if (score <= 2) return { score: 1, text: 'Weak' }
-    if (score === 3 || score === 4) return { score: 2, text: 'Moderate' }
-    return { score: 3, text: 'Strong' }
-  }
-
-  const pwdStrength = getPasswordStrength(regPassword)
 
   // Real-time debounced username availability check
   const handleUsernameChange = (val) => {
@@ -157,7 +116,7 @@ export function LoginView({ initialMode = 'login' }) {
         setUsernameStatus({
           checking: false,
           available: data.available,
-          message: data.message,
+          message: data.message || (data.available ? 'Username available' : 'Username taken'),
         })
       } catch {
         setUsernameStatus({ checking: false, available: null, message: '' })
@@ -187,8 +146,6 @@ export function LoginView({ initialMode = 'login' }) {
 
     if (!result.success) {
       setGeneralError(result.error || 'Authentication failed. Please verify credentials.')
-    } else {
-      navigate(from, { replace: true })
     }
   }
 
@@ -201,28 +158,21 @@ export function LoginView({ initialMode = 'login' }) {
     if (!fullName.trim()) errors.fullName = 'Full name is required.'
     if (!email.trim()) {
       errors.email = 'Email address is required.'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = 'Please enter a valid email address.'
     }
 
-    if (!mobile.trim()) {
-      errors.mobile = 'Mobile number is required.'
-    } else {
-      const digits = mobile.replace(/\D/g, '')
-      if (digits.length < 10) {
-        errors.mobile = 'Please enter a valid 10-digit mobile number.'
-      }
+    if (mobile.trim() && !/^\+?[0-9\s-]{10,15}$/.test(mobile.trim())) {
+      errors.mobile = 'Please enter a valid 10-digit mobile number.'
     }
 
     if (!regPassword) {
       errors.regPassword = 'Password is required.'
-    } else if (regPassword.length < 8 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(regPassword)) {
-      errors.regPassword = 'Password must be at least 8 chars with uppercase, lowercase, and a number.'
+    } else if (regPassword.length < 8) {
+      errors.regPassword = 'Password must be at least 8 characters long.'
     }
 
-    if (!confirmPassword) {
-      errors.confirmPassword = 'Confirm your password.'
-    } else if (regPassword !== confirmPassword) {
+    if (regPassword !== confirmPassword) {
       errors.confirmPassword = 'Passwords do not match.'
     }
 
@@ -232,59 +182,62 @@ export function LoginView({ initialMode = 'login' }) {
     }
 
     setFieldErrors({})
-
-    // Suggest default username from email if none yet
     if (!username) {
-      const suggested = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()
-      handleUsernameChange(suggested)
+      const generated = email.split('@')[0].replace(/[^a-z0-9_]/g, '_').toLowerCase()
+      setUsername(generated)
+      handleUsernameChange(generated)
     }
-
     setStep(2)
   }
 
-  // 3. Complete Step 2 & Register Account
+  // 3. Final Step 2 Registration Submission
   const handleRegisterSubmit = async (e) => {
     e.preventDefault()
     setGeneralError('')
+    setGeneralSuccess('')
+    setFieldErrors({})
 
     if (!username || username.length < 3) {
-      setFieldErrors({ username: 'Username is required (min 3 characters).' })
+      setGeneralError('Please enter a valid username (at least 3 characters).')
       return
     }
 
     if (usernameStatus.available === false) {
-      setFieldErrors({ username: 'Please pick an available username.' })
+      setGeneralError('This username is already taken. Please pick another.')
       return
     }
 
     setIsSubmitting(true)
-    const result = await register({
-      fullName,
-      email,
-      mobile,
-      username,
+    const res = await register({
+      fullName: fullName.trim(),
+      name: fullName.trim(),
+      email: email.trim(),
+      mobile: mobile.trim() || null,
+      username: username.trim() || null,
       profilePhoto,
       password: regPassword,
-      confirmPassword,
       role: selectedRole,
+      department:
+        selectedRole === 'Relief Operator'
+          ? 'Field Logistics & Convoy Operations'
+          : 'Regional Disaster Research & Analytics',
     })
     setIsSubmitting(false)
 
-    if (!result.success) {
-      setGeneralError(result.error || 'Failed to create account.')
-    } else {
-      navigate(from, { replace: true })
+    if (!res.success) {
+      setGeneralError(res.error || 'Registration failed. Please try again.')
     }
   }
 
-  // 4. Submit Forgot Password
+  // 4. Submit Forgot Password Request
   const handleForgotSubmit = async (e) => {
     e.preventDefault()
     setGeneralError('')
     setGeneralSuccess('')
+    setDevResetLink('')
 
     if (!forgotIdentifier.trim()) {
-      setGeneralError('Please enter your email address or mobile number.')
+      setGeneralError('Please enter your email or mobile number.')
       return
     }
 
@@ -372,19 +325,23 @@ export function LoginView({ initialMode = 'login' }) {
     }
   }
 
-  // Demo auto-fill helper for hackathon evaluators
-  const handleDemoFill = (roleType) => {
-    if (roleType === 'admin') {
-      setIdentifier('admin@resq.demo')
-      setPassword('Resq@2026!')
-    } else if (roleType === 'operator') {
-      setIdentifier('operator@resq.demo')
-      setPassword('Resq@2026!')
-    } else {
-      setIdentifier('viewer@resq.demo')
-      setPassword('Resq@2026!')
-    }
+  // Demo auto-fill helper for hackathon evaluators with instant 1-click login
+  const handleDemoFill = async (roleType) => {
+    let targetEmail = 'admin@resq.demo'
+    if (roleType === 'operator') targetEmail = 'operator@resq.demo'
+    else if (roleType === 'viewer') targetEmail = 'viewer@resq.demo'
+
+    setIdentifier(targetEmail)
+    setPassword('Resq@2026!')
     setGeneralError('')
+
+    setIsSubmitting(true)
+    const result = await login(targetEmail, 'Resq@2026!', true)
+    setIsSubmitting(false)
+
+    if (!result.success) {
+      setGeneralError(result.error || 'Authentication failed for demo account.')
+    }
   }
 
   return (
@@ -392,7 +349,7 @@ export function LoginView({ initialMode = 'login' }) {
       <div className={styles.bgPattern} />
 
       <div className={styles.authWrapper}>
-        {/* Top Branding matching reference */}
+        {/* Top Branding */}
         <div className={styles.topBranding}>
           <div className={styles.brandLogoRow}>
             <div className={styles.brandIcon}>
@@ -463,7 +420,7 @@ export function LoginView({ initialMode = 'login' }) {
                       id="login-identifier"
                       type="text"
                       className={`${styles.input} ${fieldErrors.identifier ? styles.inputError : ''}`}
-                      placeholder="e.g. rahul@example.com or +91 XXXXX XXXXX"
+                      placeholder="e.g. admin@resq.demo or +91 98765 00001"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       autoComplete="username"
@@ -517,6 +474,23 @@ export function LoginView({ initialMode = 'login' }) {
                   {fieldErrors.password && (
                     <span className={styles.errorText}>{fieldErrors.password}</span>
                   )}
+                </div>
+
+                {/* Remember Me Checkbox */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '2px 0' }}>
+                  <input
+                    id="remember-me-checkbox"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    style={{ cursor: 'pointer', accentColor: '#2563eb', width: '15px', height: '15px' }}
+                  />
+                  <label
+                    htmlFor="remember-me-checkbox"
+                    style={{ fontSize: '12.5px', color: '#4b5563', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Remember this terminal (7 days)
+                  </label>
                 </div>
 
                 {/* Submit Button */}
@@ -585,13 +559,14 @@ export function LoginView({ initialMode = 'login' }) {
               <div className={styles.demoAccessBar}>
                 <div className={styles.demoBarTitle}>
                   <Radio size={12} />
-                  <span>Quick Demo Access (IIT Evaluators)</span>
+                  <span>Quick Demo Access (1-Click Login)</span>
                 </div>
                 <div className={styles.demoPills}>
                   <button
                     type="button"
                     className={styles.demoPill}
                     onClick={() => handleDemoFill('admin')}
+                    disabled={isSubmitting}
                   >
                     Admin
                   </button>
@@ -599,6 +574,7 @@ export function LoginView({ initialMode = 'login' }) {
                     type="button"
                     className={styles.demoPill}
                     onClick={() => handleDemoFill('operator')}
+                    disabled={isSubmitting}
                   >
                     Relief Operator
                   </button>
@@ -606,6 +582,7 @@ export function LoginView({ initialMode = 'login' }) {
                     type="button"
                     className={styles.demoPill}
                     onClick={() => handleDemoFill('viewer')}
+                    disabled={isSubmitting}
                   >
                     Viewer / Monitoring
                   </button>
@@ -698,21 +675,22 @@ export function LoginView({ initialMode = 'login' }) {
                         </div>
                       </div>
                       <div className={styles.photoDetails}>
-                        <span className={styles.photoTitle}>Add a profile photo</span>
-                        <span className={styles.photoSubtitle}>
-                          Help your operations team recognize you.
-                        </span>
+                        <span className={styles.photoLabel}>Profile Photo</span>
+                        <span className={styles.photoHint}>JPG, PNG or WEBP (Max 5MB)</span>
                       </div>
                     </div>
 
                     {/* Full Name */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Full name</label>
+                      <label className={styles.label} htmlFor="reg-name">
+                        Full Name
+                      </label>
                       <div className={styles.inputWrapper}>
                         <div className={styles.inputIcon}>
                           <User size={16} />
                         </div>
                         <input
+                          id="reg-name"
                           type="text"
                           className={`${styles.input} ${fieldErrors.fullName ? styles.inputError : ''}`}
                           placeholder="e.g. Rahul Kumar"
@@ -727,12 +705,15 @@ export function LoginView({ initialMode = 'login' }) {
 
                     {/* Email */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Email address</label>
+                      <label className={styles.label} htmlFor="reg-email">
+                        Email Address
+                      </label>
                       <div className={styles.inputWrapper}>
                         <div className={styles.inputIcon}>
                           <Mail size={16} />
                         </div>
                         <input
+                          id="reg-email"
                           type="email"
                           className={`${styles.input} ${fieldErrors.email ? styles.inputError : ''}`}
                           placeholder="e.g. rahul@example.com"
@@ -747,15 +728,18 @@ export function LoginView({ initialMode = 'login' }) {
 
                     {/* Mobile Number */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Mobile number</label>
+                      <label className={styles.label} htmlFor="reg-mobile">
+                        Mobile Number (Optional)
+                      </label>
                       <div className={styles.inputWrapper}>
                         <div className={styles.inputIcon}>
                           <Phone size={16} />
                         </div>
                         <input
+                          id="reg-mobile"
                           type="tel"
                           className={`${styles.input} ${fieldErrors.mobile ? styles.inputError : ''}`}
-                          placeholder="+91 XXXXX XXXXX"
+                          placeholder="e.g. +91 98765 43210"
                           value={mobile}
                           onChange={(e) => setMobile(e.target.value)}
                         />
@@ -767,15 +751,18 @@ export function LoginView({ initialMode = 'login' }) {
 
                     {/* Password */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Password</label>
+                      <label className={styles.label} htmlFor="reg-password">
+                        Password
+                      </label>
                       <div className={styles.inputWrapper}>
                         <div className={styles.inputIcon}>
                           <Lock size={16} />
                         </div>
                         <input
+                          id="reg-password"
                           type={showRegPassword ? 'text' : 'password'}
                           className={`${styles.input} ${fieldErrors.regPassword ? styles.inputError : ''}`}
-                          placeholder="At least 8 characters"
+                          placeholder="Minimum 8 characters"
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
                         />
@@ -783,6 +770,7 @@ export function LoginView({ initialMode = 'login' }) {
                           type="button"
                           className={styles.eyeBtn}
                           onClick={() => setShowRegPassword(!showRegPassword)}
+                          aria-label={showRegPassword ? 'Hide password' : 'Show password'}
                         >
                           {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
@@ -790,44 +778,20 @@ export function LoginView({ initialMode = 'login' }) {
                       {fieldErrors.regPassword && (
                         <span className={styles.errorText}>{fieldErrors.regPassword}</span>
                       )}
-
-                      {/* Password strength meter */}
-                      {regPassword && (
-                        <div className={styles.strengthWrapper}>
-                          <div className={styles.strengthBarTrack}>
-                            <div
-                              className={`${styles.strengthSegment} ${
-                                pwdStrength.score >= 1 ? styles.strengthWeak : ''
-                              }`}
-                            />
-                            <div
-                              className={`${styles.strengthSegment} ${
-                                pwdStrength.score >= 2 ? styles.strengthFair : ''
-                              }`}
-                            />
-                            <div
-                              className={`${styles.strengthSegment} ${
-                                pwdStrength.score >= 3 ? styles.strengthGood : ''
-                              }`}
-                            />
-                          </div>
-                          <div className={styles.strengthLabel}>
-                            <span>Strength: {pwdStrength.text}</span>
-                            <span>Min 8 chars, 1 uppercase, 1 number</span>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                     {/* Confirm Password */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Confirm password</label>
+                      <label className={styles.label} htmlFor="reg-confirm-password">
+                        Confirm Password
+                      </label>
                       <div className={styles.inputWrapper}>
                         <div className={styles.inputIcon}>
                           <Lock size={16} />
                         </div>
                         <input
-                          type="password"
+                          id="reg-confirm-password"
+                          type={showRegPassword ? 'text' : 'password'}
                           className={`${styles.input} ${fieldErrors.confirmPassword ? styles.inputError : ''}`}
                           placeholder="Re-enter password"
                           value={confirmPassword}
@@ -839,9 +803,9 @@ export function LoginView({ initialMode = 'login' }) {
                       )}
                     </div>
 
-                    {/* Continue Button */}
+                    {/* Next Button */}
                     <button type="submit" className={styles.submitBtn}>
-                      <span>Continue to Step 2</span>
+                      <span>Continue to username</span>
                       <ArrowRight size={16} />
                     </button>
                   </form>
@@ -852,85 +816,58 @@ export function LoginView({ initialMode = 'login' }) {
               {step === 2 && (
                 <div>
                   <div className={styles.cardHeader} style={{ marginBottom: '16px' }}>
-                    <h2 className={styles.cardTitle}>Choose your RESQ identity</h2>
+                    <h2 className={styles.cardTitle}>Choose your username</h2>
                     <p className={styles.cardSubtitle}>
-                      Pick a username for your operations profile.
+                      Pick your unique identifier and operational role in RESQ.
                     </p>
                   </div>
 
                   <form onSubmit={handleRegisterSubmit} className={styles.form}>
                     {/* Username Field */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Username</label>
+                      <div className={styles.labelRow}>
+                        <label className={styles.label} htmlFor="reg-username">
+                          Username
+                        </label>
+                        {usernameStatus.message && (
+                          <span
+                            className={
+                              usernameStatus.available === true
+                                ? styles.statusSuccess
+                                : usernameStatus.available === false
+                                ? styles.statusError
+                                : styles.statusChecking
+                            }
+                          >
+                            {usernameStatus.available === true && <Check size={12} />}
+                            {usernameStatus.message}
+                          </span>
+                        )}
+                      </div>
                       <div className={styles.inputWrapper}>
-                        <span className={styles.usernamePrefix}>@</span>
+                        <div className={styles.inputIcon}>
+                          <span style={{ fontSize: '15px', fontWeight: 'bold' }}>@</span>
+                        </div>
                         <input
+                          id="reg-username"
                           type="text"
-                          className={`${styles.input} ${styles.inputWithPrefix} ${
-                            fieldErrors.username ? styles.inputError : ''
+                          className={`${styles.input} ${
+                            usernameStatus.available === false ? styles.inputError : ''
                           }`}
                           placeholder="e.g. rahul_resq"
                           value={username}
                           onChange={(e) => handleUsernameChange(e.target.value)}
                         />
                       </div>
-
-                      {/* Real-time availability feedback */}
-                      {usernameStatus.message && (
-                        <div className={styles.availBadge}>
-                          {usernameStatus.checking && (
-                            <span className={styles.availChecking}>Checking availability...</span>
-                          )}
-                          {usernameStatus.available === true && (
-                            <span className={styles.availSuccess}>
-                              <Check size={13} style={{ display: 'inline', marginRight: '4px' }} />
-                              {usernameStatus.message}
-                            </span>
-                          )}
-                          {usernameStatus.available === false && (
-                            <span className={styles.availTaken}>
-                              <AlertCircle size={13} style={{ display: 'inline', marginRight: '4px' }} />
-                              {usernameStatus.message}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Suggestions Chips */}
-                      <div className={styles.chipsRow}>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>Suggestions:</span>
-                        <button
-                          type="button"
-                          className={styles.chip}
-                          onClick={() => handleUsernameChange(`${fullName.toLowerCase().replace(/\s+/g, '_')}_resq`)}
-                        >
-                          @{fullName.toLowerCase().replace(/\s+/g, '_')}_resq
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.chip}
-                          onClick={() => handleUsernameChange('relief_operator')}
-                        >
-                          @relief_operator
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.chip}
-                          onClick={() => handleUsernameChange('field_ops')}
-                        >
-                          @field_ops
-                        </button>
-                      </div>
-
-                      {fieldErrors.username && (
-                        <span className={styles.errorText}>{fieldErrors.username}</span>
-                      )}
+                      <span className={styles.photoHint}>
+                        3-20 characters: letters, numbers, and underscores only.
+                      </span>
                     </div>
 
-                    {/* Operational Role Selection */}
+                    {/* Role Selection */}
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Select Operational Role</label>
-                      <div className={styles.roleCardGroup}>
+                      <div className={styles.rolesGrid}>
                         {/* Relief Operator */}
                         <div
                           className={`${styles.roleCard} ${
@@ -949,11 +886,11 @@ export function LoginView({ initialMode = 'login' }) {
                             <div className={styles.roleTitleRow}>
                               <span className={styles.roleTitle}>Relief Operator</span>
                               <span className={`${styles.roleBadge} ${styles.badgeOperator}`}>
-                                Standard Clearance
+                                Field Operations
                               </span>
                             </div>
                             <span className={styles.roleDesc}>
-                              Field reporting, 500m risk inspection, convoy routing, and damage logging.
+                              Report damage, coordinate relief convoys, manage routes, and trigger emergency SOS.
                             </span>
                           </div>
                         </div>
@@ -1048,7 +985,7 @@ export function LoginView({ initialMode = 'login' }) {
                     <input
                       type="text"
                       className={styles.input}
-                      placeholder="e.g. rahul@example.com or +91 XXXXX XXXXX"
+                      placeholder="e.g. admin@resq.demo or +91 98765 00001"
                       value={forgotIdentifier}
                       onChange={(e) => setForgotIdentifier(e.target.value)}
                     />
@@ -1061,7 +998,6 @@ export function LoginView({ initialMode = 'login' }) {
                 </button>
               </form>
 
-              {/* Dev Reset Link helper for evaluator convenience */}
               {devResetLink && (
                 <div style={{ marginTop: '16px', padding: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', fontSize: '12px' }}>
                   <strong>Dev Testing Link:</strong>
@@ -1145,8 +1081,14 @@ export function LoginView({ initialMode = 'login' }) {
             </>
           )}
         </div>
+
+        {/* Emergency Hotline Footer */}
+        <div className={styles.emergencyHotlineFooter}>
+          Emergency Control Helpline: 1070 / 1079 • Assam State Disaster Management Authority (ASDMA)
+        </div>
       </div>
     </div>
   )
 }
+
 export default LoginView
