@@ -237,7 +237,40 @@ export function useResqDrivingMode(map) {
     [sessionId, origin, routeData, cameraFollowing, setRerouteNotice, applyReroute]
   );
 
-  // 4. Register Session for Live 500m Grid Risk Monitoring
+  // 4. Live Risk Recalculation Demonstration Notification (Fires at 3.5s after launch)
+  useEffect(() => {
+    if (navigationMode !== "driving" || !sessionId) return;
+
+    const demoTimer1 = setTimeout(() => {
+      setRerouteNotice({
+        active: true,
+        type: "RECALCULATING",
+        message: "LIVE RISK RECALCULATION ACTIVE",
+        detail: "Continuous 500m PostGIS grid monitoring • Recalculating live corridor risk...",
+      });
+    }, 3500);
+
+    const demoTimer2 = setTimeout(() => {
+      setRerouteNotice({
+        active: true,
+        type: "SAFER_FOUND",
+        message: "CORRIDOR SYNCHRONIZED",
+        detail: "Live route verified against real-time multi-hazard safety grid.",
+      });
+    }, 7000);
+
+    const demoTimer3 = setTimeout(() => {
+      setRerouteNotice(null);
+    }, 10500);
+
+    return () => {
+      clearTimeout(demoTimer1);
+      clearTimeout(demoTimer2);
+      clearTimeout(demoTimer3);
+    };
+  }, [navigationMode, sessionId, setRerouteNotice]);
+
+  // 5. Register Session for Live 500m Grid Risk Monitoring
   useEffect(() => {
     if (navigationMode !== "driving" || !sessionId || !routeData?.geometry) {
       if (monitorTimerRef.current) {

@@ -15,6 +15,7 @@ import {
   List,
   AlertTriangle,
   CheckCircle2,
+  RefreshCw,
   ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
@@ -95,17 +96,21 @@ export function ResqNavigationOverlay({ onRecenter }) {
     <div className={styles.overlayRoot}>
       {/* 1. TOP MANEUVER BANNER */}
       <div className={styles.topSection}>
-        {/* Dynamic Risk Reroute Alert Banner */}
+        {/* Dynamic Risk Reroute / Recalculation Alert Banner */}
         {rerouteNotice?.active && (
           <div
             className={
               rerouteNotice.type === "SAFER_FOUND"
                 ? styles.saferFoundBanner
+                : rerouteNotice.type === "RECALCULATING"
+                ? styles.recalculatingBanner
                 : styles.offRouteBanner
             }
           >
             {rerouteNotice.type === "SAFER_FOUND" ? (
               <CheckCircle2 size={18} className={styles.alertIcon} />
+            ) : rerouteNotice.type === "RECALCULATING" ? (
+              <RefreshCw size={18} className={`${styles.alertIcon} ${styles.spinIcon}`} />
             ) : (
               <AlertTriangle size={18} className={styles.alertIcon} />
             )}
