@@ -2,7 +2,7 @@
 
 export const GUWAHATI_CENTER = [91.7362, 26.1445]
 
-export const DEFAULT_ZOOM = 12.4
+export const DEFAULT_ZOOM = 13.8
 
 export const ZOOM_RANGE = { min: 9, max: 17 }
 

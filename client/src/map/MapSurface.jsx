@@ -465,7 +465,7 @@ export function MapSurface({
 
       map.flyTo({
         center: [lon, lat],
-        zoom: Math.max(map.getZoom(), 13),
+        zoom: Math.max(map.getZoom(), 14.2),
         speed: 1.2,
         curve: 1.4,
         essential: true,
