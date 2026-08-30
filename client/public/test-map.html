@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OpenFreeMap Test</title>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; }
+    #map { width: 100vw; height: 100vh; }
+    #log { position: absolute; top: 10px; left: 10px; background: white; padding: 10px; z-index: 999; font-family: monospace; font-size: 12px; max-width: 400px; max-height: 300px; overflow: auto; border: 2px solid #333; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="log"></div>
+  <script>
+    const log = document.getElementById('log');
+    function addLog(msg) {
+      log.innerHTML += msg + '<br>';
+      console.log(msg);
+    }
+
+    addLog('Creating map with OpenFreeMap Bright...');
+
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.openfreemap.org/styles/bright',
+      center: [91.7362, 26.1445],
+      zoom: 12,
+    });
+
+    map.on('load', () => {
+      addLog('✅ MAP LOADED SUCCESSFULLY');
+      const style = map.getStyle();
+      addLog('Sources: ' + Object.keys(style.sources).join(', '));
+      addLog('Layers: ' + style.layers.length);
+      addLog('Glyphs: ' + style.glyphs);
+
+      // Add a test marker
+      new maplibregl.Marker({ color: '#2563eb' })
+        .setLngLat([91.7362, 26.1445])
+        .addTo(map);
+      addLog('✅ Marker added');
+    });
+
+    map.on('error', (e) => {
+      addLog('❌ ERROR: ' + (e.error?.message || e.message));
+    });
+
+    map.on('styledata', () => {
+      addLog('Style data event fired');
+    });
+
+    map.on('sourcedata', (e) => {
+      if (e.isSourceLoaded) {
+        addLog('Source loaded: ' + e.sourceId);
+      }
+    });
+  </script>
+</body>
+</html>
