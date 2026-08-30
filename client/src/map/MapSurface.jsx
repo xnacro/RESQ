@@ -267,45 +267,63 @@ export function MapSurface({
   // SELECTED GRID: Update highlight polygon
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded || !map.isStyleLoaded()) return
-    const source = map.getSource('selected-grid-highlight-source')
-    if (!source) return
-    if (selectedGridGeometry) {
-      source.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: selectedGridGeometry, properties: { risk_status: selectedGridStatus || 'CRITICAL' } }] })
+    if (!map || !mapLoaded) return
+
+    const applyGrid = () => {
+      const source = map.getSource('selected-grid-highlight-source')
+      if (!source) return
+      if (selectedGridGeometry) {
+        source.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: selectedGridGeometry, properties: { risk_status: selectedGridStatus || 'CRITICAL' } }] })
+      } else {
+        source.setData({ type: 'FeatureCollection', features: [] })
+      }
+    }
+
+    if (map.isStyleLoaded()) {
+      applyGrid()
     } else {
-      source.setData({ type: 'FeatureCollection', features: [] })
+      map.once('style.load', applyGrid)
     }
   }, [selectedGridGeometry, selectedGridStatus, mapLoaded])
 
   // LOCATION MARKER: Update user location on map
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded || !map.isStyleLoaded()) return
+    if (!map || !mapLoaded) return
 
-    if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
-      const lat = parseFloat(selectedLocation.lat)
-      const lon = parseFloat(selectedLocation.lon)
+    const applyLocation = () => {
+      if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
+        const lat = parseFloat(selectedLocation.lat)
+        const lon = parseFloat(selectedLocation.lon)
 
-      // Update WebGL circle source
-      const locSource = map.getSource('user-location-source')
-      if (locSource) {
-        locSource.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] } }] })
-      }
+        // Update WebGL circle source if available
+        const locSource = map.getSource('user-location-source')
+        if (locSource) {
+          locSource.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] } }] })
+        }
 
-      // Create or update DOM marker with pulse animation
-      if (!markerRef.current) {
-        const el = document.createElement('div')
-        el.innerHTML = `<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer"><div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(37,99,235,0.25);animation:pulseRing 2s infinite ease-out"></div><div style="position:relative;width:22px;height:22px;border-radius:50%;background:#2563eb;border:3.5px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,0.5);z-index:2;display:flex;align-items:center;justify-content:center"><div style="width:6px;height:6px;border-radius:50%;background:#fff"></div></div></div>`
-        markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lon, lat]).addTo(map)
+        // Create or update DOM marker with pulse animation
+        if (!markerRef.current) {
+          const el = document.createElement('div')
+          el.innerHTML = `<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer"><div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(37,99,235,0.25);animation:pulseRing 2s infinite ease-out"></div><div style="position:relative;width:22px;height:22px;border-radius:50%;background:#2563eb;border:3.5px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,0.5);z-index:2;display:flex;align-items:center;justify-content:center"><div style="width:6px;height:6px;border-radius:50%;background:#fff"></div></div></div>`
+          markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lon, lat]).addTo(map)
+        } else {
+          markerRef.current.setLngLat([lon, lat])
+        }
+
+        map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), speed: 1.2, curve: 1.4, essential: true })
       } else {
-        markerRef.current.setLngLat([lon, lat])
+        const locSource = map.getSource('user-location-source')
+        if (locSource) locSource.setData({ type: 'FeatureCollection', features: [] })
+        if (markerRef.current) { markerRef.current.remove(); markerRef.current = null }
       }
+    }
 
-      map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), speed: 1.2, curve: 1.4, essential: true })
+    // If style is already loaded, apply immediately; otherwise wait for it
+    if (map.isStyleLoaded()) {
+      applyLocation()
     } else {
-      const locSource = map.getSource('user-location-source')
-      if (locSource) locSource.setData({ type: 'FeatureCollection', features: [] })
-      if (markerRef.current) { markerRef.current.remove(); markerRef.current = null }
+      map.once('style.load', applyLocation)
     }
   }, [selectedLocation, mapLoaded])
 
