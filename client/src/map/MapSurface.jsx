@@ -686,7 +686,11 @@ export function MapSurface({
     if (!map || !mapReady) return
 
     const applyRoute = () => {
-      const source = map.getSource('resq-route-source')
+      let source = map.getSource('resq-route-source')
+      if (!source) {
+        addCustomLayers(map)
+        source = map.getSource('resq-route-source')
+      }
       if (!source) return
 
       if (routeData && routeData.geometry && routeData.geometry.length > 0) {

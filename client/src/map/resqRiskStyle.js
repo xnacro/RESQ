@@ -95,18 +95,18 @@ export function getRouteLayerStyles() {
   return {
     glow: {
       'line-color': '#00f0ff',
-      'line-width': 16,
-      'line-opacity': 0.45,
-      'line-blur': 5,
+      'line-width': 20,
+      'line-opacity': 0.65,
+      'line-blur': 4,
     },
     casing: {
       'line-color': '#ffffff',
-      'line-width': 9,
+      'line-width': 11,
       'line-opacity': 1,
     },
     fill: {
-      'line-color': '#2563eb',
-      'line-width': 6,
+      'line-color': '#1d4ed8',
+      'line-width': 7,
       'line-opacity': 1,
     },
     layout: {
