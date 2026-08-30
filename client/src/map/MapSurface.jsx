@@ -184,9 +184,21 @@ export function MapSurface({
 
       map.addLayer(
         {
+          id: 'resq-route-glow',
+          type: 'line',
+          source: 'resq-route-source',
+          layout: routeStyles.layout,
+          paint: routeStyles.glow,
+        },
+        beforeId,
+      )
+
+      map.addLayer(
+        {
           id: 'resq-route-casing',
           type: 'line',
           source: 'resq-route-source',
+          layout: routeStyles.layout,
           paint: routeStyles.casing,
         },
         beforeId,
@@ -197,6 +209,7 @@ export function MapSurface({
           id: 'resq-route-line',
           type: 'line',
           source: 'resq-route-source',
+          layout: routeStyles.layout,
           paint: routeStyles.fill,
         },
         beforeId,
@@ -557,18 +570,19 @@ export function MapSurface({
     if (!map || !mapReady) return
 
     const applyRoute = () => {
-      const source = map.getSource('resq-route-source')
-      if (!source) return
-
       if (routeData && routeData.geometry && routeData.geometry.length > 0) {
-        source.setData({
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: routeData.geometry,
-          },
-          properties: {},
-        })
+        addCustomLayers(map)
+        const source = map.getSource('resq-route-source')
+        if (source) {
+          source.setData({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: routeData.geometry,
+            },
+            properties: {},
+          })
+        }
 
         // Render Start (Origin A) Marker
         if (originMarkerRef.current) originMarkerRef.current.remove()
@@ -667,7 +681,7 @@ export function MapSurface({
     } else {
       map.once('style.load', applyRoute)
     }
-  }, [routeData, navigationMode, mapReady])
+  }, [routeData, navigationMode, mapReady, addCustomLayers])
 
   return (
     <div className={styles.wrapper}>

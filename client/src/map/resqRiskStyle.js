@@ -93,15 +93,25 @@ export function getEventCirclePaint() {
 // Returns prepared route style layer configs
 export function getRouteLayerStyles() {
   return {
+    glow: {
+      'line-color': '#3b82f6',
+      'line-width': 14,
+      'line-opacity': 0.35,
+      'line-blur': 4,
+    },
     casing: {
-      'line-color': RESQ_ROUTE_PRESETS.SAFE.casingColor,
-      'line-width': RESQ_ROUTE_PRESETS.SAFE.casingWidth,
-      'line-opacity': 0.9,
+      'line-color': '#1e3a8a',
+      'line-width': 8.5,
+      'line-opacity': 0.95,
     },
     fill: {
-      'line-color': RESQ_ROUTE_PRESETS.SAFE.fillColor,
-      'line-width': RESQ_ROUTE_PRESETS.SAFE.fillWidth,
+      'line-color': '#2563eb',
+      'line-width': 5.5,
       'line-opacity': 1,
+    },
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
     },
   }
 }

@@ -1,17 +1,19 @@
-/* Route Summary Container */
+/* Route Summary Panel with Full Glassmorphism & High-Contrast Design */
 .container {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  background: #ffffff;
+  background: transparent;
 }
 
 /* Header */
 .header {
-  padding: 16px 20px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #f8fafc;
+  padding: 16px 18px 14px 18px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .headerTitleRow {
@@ -25,13 +27,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
-  padding: 3px 9px;
-  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -40,26 +42,33 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(37, 99, 235, 0.6);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .closeBtn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
+  background: rgba(241, 245, 249, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all var(--dur) var(--ease);
 }
 
 .closeBtn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: #ffffff;
+  color: var(--text);
+  border-color: var(--line-strong);
 }
 
 /* Path Strip */
@@ -67,10 +76,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #ffffff;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: var(--shadow-sm);
 }
 
 .pathNode {
@@ -88,6 +100,7 @@
   background: #10b981;
   border: 2px solid #a7f3d0;
   flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
 }
 
 .destDot {
@@ -97,19 +110,20 @@
   background: #ef4444;
   border: 2px solid #fecaca;
   flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
 }
 
 .nodeText {
   font-size: 12.5px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .pathArrow {
-  color: #94a3b8;
+  color: var(--text-faint);
   flex-shrink: 0;
 }
 
@@ -118,28 +132,31 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  padding: 14px 20px;
+  padding: 14px 18px;
 }
 
 .modeCard {
   padding: 12px;
-  border-radius: 12px;
-  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: all 0.15s ease;
+  transition: all var(--dur) var(--ease);
 }
 
 .modeCardActive {
-  background: #eff6ff;
-  border-color: #2563eb;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+  background: rgba(239, 246, 255, 0.85);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
 }
 
 .modeCardDisabled {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+  background: rgba(248, 250, 252, 0.5);
+  border-color: rgba(226, 232, 240, 0.6);
   opacity: 0.75;
   cursor: not-allowed;
 }
@@ -151,17 +168,17 @@
 }
 
 .fastIcon {
-  color: #2563eb;
+  color: var(--accent);
 }
 
 .safeIcon {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .modeCardTitle {
   font-size: 12.5px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .modeCardStats {
@@ -172,20 +189,20 @@
 }
 
 .modeEta {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 800;
-  color: #2563eb;
+  color: var(--accent);
 }
 
 .modeDist {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .comingSoonTag {
   font-size: 10.5px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--text-faint);
   margin-top: 2px;
 }
 
@@ -193,22 +210,25 @@
 .statsSummary {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 0 20px 14px;
+  gap: 10px;
+  padding: 0 18px 14px;
 }
 
 .statBox {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
   padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .statIcon {
-  color: #2563eb;
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -216,19 +236,19 @@
   display: block;
   font-size: 13.5px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .statLabel {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* Maneuver Section */
 .maneuverSection {
   flex: 1;
-  padding: 0 20px 16px;
+  padding: 0 18px 16px;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -236,9 +256,9 @@
 
 .sectionHeading {
   margin: 0 0 10px 0;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -246,7 +266,7 @@
 .maneuverList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow-y: auto;
   max-height: 240px;
   padding-right: 4px;
@@ -257,9 +277,18 @@
   align-items: flex-start;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(241, 245, 249, 0.9);
+  transition: all var(--dur) var(--ease);
+}
+
+.maneuverItem:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(226, 232, 240, 0.9);
+  transform: translateY(-1px);
 }
 
 .stepIconCircle {
@@ -267,7 +296,7 @@
   height: 28px;
   border-radius: 50%;
   background: #eff6ff;
-  color: #2563eb;
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -284,7 +313,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text);
   line-height: 1.35;
 }
 
@@ -294,12 +323,12 @@
   gap: 6px;
   margin-top: 3px;
   font-size: 11.5px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .stepDistance {
-  font-weight: 600;
-  color: #2563eb;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .stepStreet {
@@ -310,9 +339,11 @@
 
 /* Action Footer */
 .footer {
-  padding: 16px 20px;
-  border-top: 1px solid #f1f5f9;
-  background: #ffffff;
+  padding: 16px 18px;
+  border-top: 1px solid rgba(226, 232, 240, 0.7);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   margin-top: auto;
 }
 
@@ -322,20 +353,20 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #2563eb;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
-  padding: 12px 18px;
-  border-radius: 10px;
+  padding: 13px 18px;
+  border-radius: 12px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
-  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all var(--dur) var(--ease);
 }
 
 .startNavBtn:hover {
-  background: #1d4ed8;
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
 }
