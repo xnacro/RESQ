@@ -1,14 +1,16 @@
 // Floating bottom layer switcher for MapLibre map modes
-import { Map, Box, Mountain, Globe, Layers } from 'lucide-react'
+import { Map, Compass, Box, Mountain, Globe, Layers, Shield } from 'lucide-react'
 import { MAP_MODES } from './mapStyles.js'
 import styles from './LayerSwitcher.module.css'
 
 const LAYERS = [
   { id: MAP_MODES.NORMAL, label: 'Normal', icon: Map },
+  { id: MAP_MODES.LIBERTY, label: 'Liberty', icon: Compass },
   { id: MAP_MODES.D3, label: '3D', icon: Box },
   { id: MAP_MODES.TERRAIN, label: 'Terrain', icon: Mountain },
   { id: MAP_MODES.SATELLITE, label: 'Satellite', icon: Globe },
   { id: MAP_MODES.HYBRID, label: 'Hybrid', icon: Layers },
+  { id: MAP_MODES.RESQ, label: 'RESQ', icon: Shield },
 ]
 
 export function LayerSwitcher({ activeMode = MAP_MODES.NORMAL, onModeChange }) {

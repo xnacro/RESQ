@@ -1,15 +1,17 @@
-// MapLibre and OpenFreeMap vector basemap configurations
-// Uses 100% open, free, zero-token OpenFreeMap vector tile infrastructure
+// MapLibre and OpenFreeMap vector tile style configurations
+// Uses 100% vector tile endpoints for crisp, high-resolution rendering
 
 export const MAP_MODES = {
   NORMAL: 'normal',
+  LIBERTY: 'liberty',
   D3: '3d',
   TERRAIN: 'terrain',
   SATELLITE: 'satellite',
   HYBRID: 'hybrid',
+  RESQ: 'resq',
 }
 
-// OpenFreeMap vector style endpoints
+// OpenFreeMap vector styles
 export const OPEN_FREE_MAP_STYLES = Object.freeze({
   BRIGHT: 'https://tiles.openfreemap.org/styles/bright',
   LIBERTY: 'https://tiles.openfreemap.org/styles/liberty',
@@ -51,7 +53,7 @@ export const STANDALONE_HYBRID_STYLE = Object.freeze({
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
-      attribution: '&copy; Maxar, Earthstar Geographics, ISRO, OpenFreeMap',
+      attribution: '&copy; Maxar, Earthstar Geographics, ISRO',
       maxzoom: 18,
     },
     overlayLabels: {
@@ -82,11 +84,13 @@ export const STANDALONE_HYBRID_STYLE = Object.freeze({
   ],
 })
 
-// Returns the style definition for the specified mode
+// Returns the vector style definition for the specified mode
 export function getMapStyle(mode = MAP_MODES.NORMAL) {
   switch (mode) {
     case MAP_MODES.NORMAL:
       return OPEN_FREE_MAP_STYLES.BRIGHT
+    case MAP_MODES.LIBERTY:
+      return OPEN_FREE_MAP_STYLES.LIBERTY
     case MAP_MODES.D3:
     case MAP_MODES.TERRAIN:
       return OPEN_FREE_MAP_STYLES.LIBERTY
@@ -94,6 +98,8 @@ export function getMapStyle(mode = MAP_MODES.NORMAL) {
       return STANDALONE_SATELLITE_STYLE
     case MAP_MODES.HYBRID:
       return STANDALONE_HYBRID_STYLE
+    case MAP_MODES.RESQ:
+      return OPEN_FREE_MAP_STYLES.POSITRON
     default:
       return OPEN_FREE_MAP_STYLES.BRIGHT
   }

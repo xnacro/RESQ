@@ -3,24 +3,26 @@
   inset: 0;
   display: flex;
   align-items: stretch;
-  gap: var(--sp-3);
-  padding: 0 var(--sp-3) var(--sp-3);
+  gap: 16px;
+  padding: 12px 16px 16px 16px;
+  background: #f1f5f9;
 }
 
-/* Raised tile carrying the map */
+/* Floating rounded card carrying the WebGL vector map */
 .mapArea {
   position: relative;
   flex: 1;
   min-width: 0;
-  background: var(--tile-bg);
-  border-radius: var(--r-tile);
-  box-shadow: var(--shadow-tile);
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   overflow: hidden;
 }
 
 .geoBanner {
   position: absolute;
-  top: 12px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
   background: #ffffff;
@@ -56,15 +58,16 @@
   color: var(--text);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 900px) {
   .screen {
     flex-direction: column;
-    gap: var(--sp-2);
-    padding: 0 var(--sp-2) var(--sp-2);
+    gap: 8px;
+    padding: 8px;
   }
 
   .mapArea {
     flex: 1;
     min-height: 0;
+    border-radius: 16px;
   }
 }

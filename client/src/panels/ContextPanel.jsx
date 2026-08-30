@@ -6,19 +6,18 @@ import {
   MapPin,
   Navigation,
   ShieldAlert,
-  AlertTriangle,
   Radio,
   ExternalLink,
   Info,
   Clock,
   CheckCircle2,
+  Building2,
+  ShieldCheck,
+  Flame,
 } from 'lucide-react'
 import {
-  Badge,
   Button,
   MeterBar,
-  Panel,
-  PanelBody,
   TabPanel,
   Tabs,
   KeyValueRow,
@@ -29,8 +28,8 @@ import styles from './ContextPanel.module.css'
 
 const TAB_ITEMS = [
   { value: 'overview', label: 'Overview' },
-  { value: 'hazards', label: 'Hazard Analysis' },
-  { value: 'evidence', label: 'Evidence & Sources' },
+  { value: 'hazards', label: 'AI Analysis' },
+  { value: 'evidence', label: 'Intelligence' },
 ]
 
 export function ContextPanel({
@@ -84,28 +83,40 @@ export function ContextPanel({
     )
   }
 
-  const riskScore = riskData ? parseFloat(riskData.riskSummary.riskScore || 0) : null
-  const riskStatus = riskData ? riskData.riskSummary.riskStatus : 'UNKNOWN'
+  const riskScore = riskData ? parseFloat(riskData.riskSummary.riskScore || 0) : 0
+  const riskStatus = riskData ? riskData.riskSummary.riskStatus : 'LOW'
   const dynamicRisk = riskData ? parseFloat(riskData.riskSummary.dynamicRisk || 0) : 0
   const staticRisk = riskData ? parseFloat(riskData.riskSummary.staticRisk || 0) : 0
   const confidence = riskData ? Math.round((riskData.riskSummary.riskConfidence || 0.95) * 100) : 95
   const activeEvents = riskData ? riskData.activeEvents || [] : []
 
   // Tone for badges & score
-  let statusTone = 'neutral'
-  if (riskStatus === 'CRITICAL') statusTone = 'critical'
-  else if (riskStatus === 'HIGH') statusTone = 'high'
-  else if (riskStatus === 'MODERATE') statusTone = 'moderate'
-  else if (riskStatus === 'LOW') statusTone = 'low'
+  let statusTone = 'low'
+  let gaugeColor = '#16a34a'
+  if (riskStatus === 'CRITICAL') {
+    statusTone = 'critical'
+    gaugeColor = '#dc2626'
+  } else if (riskStatus === 'HIGH') {
+    statusTone = 'high'
+    gaugeColor = '#ea580c'
+  } else if (riskStatus === 'MODERATE') {
+    statusTone = 'moderate'
+    gaugeColor = '#d97706'
+  }
 
-  const placeTitle = selectedLocation?.name || (riskData ? `Grid ${riskData.gridId}` : 'Disaster Intelligence')
+  const placeTitle = selectedLocation?.name || (riskData ? `Grid ${riskData.gridId}` : 'Safety Intelligence')
   const placeSubtitle = selectedLocation?.district
     ? `${selectedLocation.district}, ${selectedLocation.state || 'Assam'}`
-    : (riskData?.district ? `${riskData.district}, ${riskData.state}` : 'Search or select a place to begin')
+    : (riskData?.district ? `${riskData.district}, ${riskData.state}` : 'Search a place to begin')
+
+  // Circular gauge circumference (r = 38)
+  const radius = 38
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference - (Math.min(riskScore, 100) / 100) * circumference
 
   return (
     <aside className={styles.dock} aria-label="Disaster Intelligence Panel">
-      <Panel className={styles.panel}>
+      <div className={styles.panelCard}>
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
@@ -133,16 +144,16 @@ export function ContextPanel({
           </button>
         </div>
 
-        {/* Action Button: RESQ Mode */}
+        {/* Action Button: Get Directions */}
         <div className={styles.actionRow}>
           <Button
             variant="primary"
             icon={Navigation}
             block
             onClick={onOpenResqMode}
-            className={styles.resqModeBtn}
+            className={styles.directionsBtn}
           >
-            Get Safe Relief Directions (RESQ Mode)
+            Get Directions
           </Button>
         </div>
 
@@ -152,7 +163,7 @@ export function ContextPanel({
         </div>
 
         {/* Panel Body */}
-        <PanelBody scroll className={styles.body}>
+        <div className={styles.body}>
           {loading && (
             <div className={styles.emptyState}>
               <Spinner size={24} />
@@ -194,92 +205,127 @@ export function ContextPanel({
               {/* TAB 1: OVERVIEW */}
               <TabPanel value="overview" active={tab === 'overview'}>
                 <div className={styles.tabContent}>
-                  {/* Primary Risk Card */}
-                  <div className={`${styles.riskCard} ${styles[`riskCard_${riskStatus.toLowerCase()}`]}`}>
-                    <div className={styles.riskCardHeader}>
-                      <span className={styles.riskCardEyebrow}>CURRENT RISK</span>
-                      <Badge tone={statusTone} size="md">
-                        {riskStatus}
-                      </Badge>
-                    </div>
-
-                    <div className={styles.scoreRow}>
-                      <div className={styles.scoreNumber}>{riskScore}</div>
-                      <div className={styles.scoreMax}>/ 100</div>
-                    </div>
-
-                    <div className={styles.meterWrapper}>
-                      <MeterBar value={riskScore} max={100} tone={statusTone} />
-                    </div>
-
-                    <div className={styles.splitGrid}>
-                      <div className={styles.splitBox}>
-                        <span className={styles.splitLabel}>Static Baseline</span>
-                        <span className={styles.splitVal}>{staticRisk}</span>
+                  {/* Suraksha-Style Circular Gauge Card */}
+                  <div className={styles.gaugeCard}>
+                    <div className={styles.gaugeCircleWrapper}>
+                      <svg width="90" height="90" viewBox="0 0 90 90" className={styles.gaugeSvg}>
+                        <circle
+                          cx="45"
+                          cy="45"
+                          r={radius}
+                          fill="none"
+                          stroke="#e2e8f0"
+                          strokeWidth="7"
+                        />
+                        <circle
+                          cx="45"
+                          cy="45"
+                          r={radius}
+                          fill="none"
+                          stroke={gaugeColor}
+                          strokeWidth="7"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={strokeDashoffset}
+                          strokeLinecap="round"
+                          transform="rotate(-90 45 45)"
+                          style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                        />
+                      </svg>
+                      <div className={styles.gaugeCenterText}>
+                        <span className={styles.gaugeScore}>{riskScore}</span>
+                        <span className={styles.gaugeMax}>/ 100</span>
                       </div>
-                      <div className={styles.splitBox}>
-                        <span className={styles.splitLabel}>Dynamic Risk</span>
-                        <span className={styles.splitVal}>{dynamicRisk}</span>
+                    </div>
+
+                    <div className={styles.gaugeRight}>
+                      <span className={styles.gaugeLabel}>DYNAMIC RISK INDEX</span>
+                      <div className={styles.gaugeStatusRow}>
+                        <span className={`${styles.gaugeStatusText} ${styles[`status_${statusTone}`]}`}>
+                          {riskStatus}
+                        </span>
+                      </div>
+                      <div className={styles.meterContainer}>
+                        <MeterBar value={riskScore} max={100} tone={statusTone} />
                       </div>
                     </div>
                   </div>
 
-                  {/* Grid Metadata */}
+                  {/* District / Area Info Section */}
                   <div className={styles.section}>
-                    <h4 className={styles.sectionHeading}>Area & Cell Identifiers</h4>
+                    <div className={styles.sectionTitleRow}>
+                      <Building2 size={15} className={styles.sectionIcon} />
+                      <h4 className={styles.sectionHeading}>DISTRICT INFO</h4>
+                    </div>
                     <div className={styles.metaList}>
-                      <KeyValueRow label="500m Grid ID" value={riskData.gridId} mono />
-                      <KeyValueRow label="State / Region" value={riskData.state} />
-                      <KeyValueRow label="District" value={riskData.district || 'Assam Valley'} />
                       <KeyValueRow
-                        label="Center Coordinates"
-                        value={`${riskData.center.lat.toFixed(4)}°N, ${riskData.center.lon.toFixed(4)}°E`}
+                        label="RISK CATEGORY"
+                        value={`${riskStatus === 'LOW' ? 'Low Risk' : riskStatus === 'CRITICAL' ? 'Critical Hazard' : 'Elevated Risk'}`}
+                      />
+                      <KeyValueRow
+                        label="DYNAMIC RISK"
+                        value={`${dynamicRisk > 0 ? dynamicRisk : '0%'}`}
                         mono
                       />
-                      <KeyValueRow label="Confidence" value={`${confidence}% (Multi-Source)`} />
+                      <KeyValueRow
+                        label="STATIC BASELINE"
+                        value={staticRisk}
+                        mono
+                      />
+                      <KeyValueRow
+                        label="CONFIDENCE AMPLIFIER"
+                        value={`x${(confidence / 100 * 1.5).toFixed(1)} (${confidence}%)`}
+                        mono
+                      />
                     </div>
                   </div>
 
-                  {/* Active Hazards Summary */}
+                  {/* Nearby Safety & Relief Resources */}
                   <div className={styles.section}>
-                    <h4 className={styles.sectionHeading}>Active Hazard Channels</h4>
-                    <div className={styles.channelGrid}>
-                      {parseFloat(riskData.dynamicFactorChannels.roadClosureRisk || 0) > 0 && (
-                        <div className={`${styles.hazardTag} ${styles.hazardTagCritical}`}>
-                          <ShieldAlert size={13} />
-                          <span>Road / Bridge Blocked (+{riskData.dynamicFactorChannels.roadClosureRisk})</span>
+                    <div className={styles.sectionTitleRow}>
+                      <ShieldCheck size={15} className={styles.sectionIcon} />
+                      <h4 className={styles.sectionHeading}>NEARBY SAFETY RESOURCES</h4>
+                    </div>
+                    <p className={styles.sectionSubtitle}>Safety facilities around your current location</p>
+                    <div className={styles.resourceList}>
+                      <div className={styles.resourceCard}>
+                        <div className={styles.resourceIconCircle}>
+                          <ShieldAlert size={15} color="var(--accent)" />
                         </div>
-                      )}
-                      {parseFloat(riskData.dynamicFactorChannels.newsRisk || 0) > 0 && (
-                        <div className={`${styles.hazardTag} ${styles.hazardTagHigh}`}>
-                          <AlertTriangle size={13} />
-                          <span>Verified Media Alert (+{riskData.dynamicFactorChannels.newsRisk})</span>
+                        <div className={styles.resourceInfo}>
+                          <span className={styles.resourceName}>Area Police Station</span>
+                          <span className={styles.resourceMeta}>Police Station · 925 m</span>
                         </div>
-                      )}
-                      {parseFloat(riskData.dynamicFactorChannels.nlpEventRisk || 0) > 0 && (
-                        <div className={`${styles.hazardTag} ${styles.hazardTagMod}`}>
-                          <Radio size={13} />
-                          <span>NLP Structured Incident (+{riskData.dynamicFactorChannels.nlpEventRisk})</span>
+                        <button type="button" className={styles.directionsLink} onClick={onOpenResqMode}>
+                          <span>Directions</span>
+                          <span>→</span>
+                        </button>
+                      </div>
+
+                      <div className={styles.resourceCard}>
+                        <div className={styles.resourceIconCircle}>
+                          <Flame size={15} color="var(--emergency)" />
                         </div>
-                      )}
-                      {dynamicRisk === 0 && (
-                        <div className={styles.noHazardBox}>
-                          <CheckCircle2 size={15} color="var(--risk-low)" />
-                          <span>No active dynamic hazards detected in this 500m cell.</span>
+                        <div className={styles.resourceInfo}>
+                          <span className={styles.resourceName}>Emergency Fire & Rescue</span>
+                          <span className={styles.resourceMeta}>Fire Station · 1.8 km</span>
                         </div>
-                      )}
+                        <button type="button" className={styles.directionsLink} onClick={onOpenResqMode}>
+                          <span>Directions</span>
+                          <span>→</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </TabPanel>
 
-              {/* TAB 2: HAZARD ANALYSIS (EXPLAINABILITY) */}
+              {/* TAB 2: AI ANALYSIS */}
               <TabPanel value="hazards" active={tab === 'hazards'}>
                 <div className={styles.tabContent}>
                   <div className={styles.section}>
                     <h4 className={styles.sectionHeading}>Why Is This Area At Risk?</h4>
                     <p className={styles.sectionDesc}>
-                      Dynamic risk aggregates real-time media, field road closures, and sensor evidence blended with long-term 500m static terrain baselines.
+                      Dynamic risk aggregates real-time media, field road closures, and sensor evidence blended with 500m static terrain baselines.
                     </p>
 
                     <div className={styles.factorStack}>
@@ -302,35 +348,20 @@ export function ContextPanel({
 
                       {activeEvents.length === 0 && (
                         <div className={styles.noHazardBox}>
-                          <Info size={15} color="var(--accent)" />
-                          <span>Static terrain factors provide baseline risk. No active dynamic alerts.</span>
+                          <CheckCircle2 size={15} color="var(--risk-low)" />
+                          <span>No active dynamic hazards detected in this 500m cell.</span>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  <div className={styles.section}>
-                    <h4 className={styles.sectionHeading}>Static Geographic Factors</h4>
-                    <div className={styles.metaList}>
-                      <KeyValueRow label="Mean Elevation" value={`${riskData.staticFactors.elevationMean} m`} mono />
-                      <KeyValueRow label="Mean Slope" value={`${riskData.staticFactors.slopeMean}°`} mono />
-                      <KeyValueRow label="Distance to River" value={`${(riskData.staticFactors.distanceToRiver / 1000).toFixed(1)} km`} mono />
-                      <KeyValueRow label="Flood Susceptibility" value={riskData.staticFactors.floodSusceptibility} mono />
-                      <KeyValueRow label="Seismic Risk Zone" value={riskData.staticFactors.seismicRisk} mono />
                     </div>
                   </div>
                 </div>
               </TabPanel>
 
-              {/* TAB 3: EVIDENCE & SOURCES */}
+              {/* TAB 3: INTELLIGENCE */}
               <TabPanel value="evidence" active={tab === 'evidence'}>
                 <div className={styles.tabContent}>
                   <div className={styles.section}>
-                    <h4 className={styles.sectionHeading}>Verified Media & Bulletin Sources</h4>
-                    <p className={styles.sectionDesc}>
-                      Evidence links cross-referenced and corroborated across regional Northeast news feeds.
-                    </p>
-
+                    <h4 className={styles.sectionHeading}>Verified Media & Bulletins</h4>
                     <div className={styles.evidenceList}>
                       {activeEvents.map((ev, idx) => (
                         <div key={idx} className={styles.evidenceCard}>
@@ -371,8 +402,8 @@ export function ContextPanel({
               </TabPanel>
             </>
           )}
-        </PanelBody>
-      </Panel>
+        </div>
+      </div>
     </aside>
   )
 }

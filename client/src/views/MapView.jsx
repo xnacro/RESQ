@@ -170,6 +170,11 @@ export default function MapView() {
     return () => window.removeEventListener('resq:select-place', handlePlaceEvent)
   }, [])
 
+  // 6. Auto-detect user's live location on initial mount
+  useEffect(() => {
+    handleLocateMe()
+  }, [handleLocateMe])
+
   return (
     <MapViewportProvider>
       <div className={styles.screen}>
