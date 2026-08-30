@@ -28,14 +28,21 @@ router.get("/health", async (req, res) => {
 // Compute physical route between origin and destination
 router.post("/", async (req, res) => {
   try {
-    const { origin, destination, mode = "fastest", vehicle = "car", alternatives = 2 } = req.body || {};
+    const {
+      origin,
+      destination,
+      mode = "fastest",
+      vehicle = "car",
+      units = "kilometers",
+      alternatives = 2,
+    } = req.body || {};
 
     if (!origin || !destination) {
       return res.status(400).json({
         success: false,
         error: {
           code: "VALIDATION_ERROR",
-          message: "Request must include both 'origin' and 'destination' objects with 'lat' and 'lon'.",
+          message: "Request must include both 'origin' and 'destination' objects or coordinate arrays.",
         },
       });
     }
@@ -45,6 +52,7 @@ router.post("/", async (req, res) => {
       destination,
       mode,
       vehicle,
+      units,
       alternatives,
     });
 

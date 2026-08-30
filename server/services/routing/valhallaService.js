@@ -56,11 +56,72 @@ export const MANEUVER_TYPE_NAMES = {
 // Supported RESQ vehicle types mapped to Valhalla automotive costing
 export const VEHICLE_COSTING_MAP = {
   car: "auto",
+  auto: "auto",
   ambulance: "auto",
   relief_truck: "auto",
   "4x4": "auto",
   water_tanker: "auto",
 };
+
+// Normalizes coordinate inputs from either [lng, lat] arrays or { lat, lon } objects
+export function normalizeCoord(input) {
+  if (!input) return null;
+  if (Array.isArray(input) && input.length >= 2) {
+    const lon = Number(input[0]);
+    const lat = Number(input[1]);
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  }
+  if (typeof input === "object") {
+    const lat = Number(input.lat ?? input.latitude);
+    const lon = Number(input.lon ?? input.lng ?? input.longitude);
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  }
+  return null;
+}
+
+// Maps Valhalla maneuver type code to visual directional icon identifier
+export function getManeuverIcon(type) {
+  switch (type) {
+    case 1:
+    case 2:
+    case 3:
+      return "start";
+    case 4:
+    case 5:
+    case 6:
+      return "destination";
+    case 8:
+    case 22:
+      return "straight";
+    case 9:
+    case 10:
+    case 11:
+    case 18:
+    case 20:
+    case 23:
+      return "right";
+    case 14:
+    case 15:
+    case 16:
+    case 19:
+    case 21:
+    case 24:
+      return "left";
+    case 12:
+    case 13:
+      return "uturn";
+    case 25:
+    case 37:
+      return "merge_right";
+    case 38:
+      return "merge_left";
+    case 26:
+    case 27:
+      return "roundabout";
+    default:
+      return "straight";
+  }
+}
 
 // Checks if a coordinate falls inside the regional Northeast India routing bounds
 export function isWithinRegionalCoverage(lat, lon) {
@@ -116,6 +177,7 @@ function normalizeManeuvers(maneuvers = []) {
   return maneuvers.map((m) => ({
     type: m.type,
     typeName: MANEUVER_TYPE_NAMES[m.type] || "Maneuver",
+    icon: getManeuverIcon(m.type),
     instruction: m.instruction || "",
     verbalInstruction:
       m.verbal_transition_alert_instruction ||
@@ -184,41 +246,55 @@ export async function calculateRoute({
   destination,
   mode = "fastest",
   vehicle = "car",
+  units = "kilometers",
   alternatives = 2,
   timeoutMs = 5000,
 }) {
-  // Validate coordinates
-  if (!origin || typeof origin.lat !== "number" || typeof origin.lon !== "number") {
+  // Normalize and validate origin and destination coordinates
+  const normOrigin = normalizeCoord(origin);
+  const normDest = normalizeCoord(destination);
+
+  if (!normOrigin) {
     const err = new Error("Invalid or missing origin coordinates");
     err.code = "VALIDATION_ERROR";
     err.status = 400;
     throw err;
   }
 
-  if (!destination || typeof destination.lat !== "number" || typeof destination.lon !== "number") {
+  if (!normDest) {
     const err = new Error("Invalid or missing destination coordinates");
     err.code = "VALIDATION_ERROR";
     err.status = 400;
     throw err;
   }
 
-  if (origin.lat < -90 || origin.lat > 90 || origin.lon < -180 || origin.lon > 180) {
+  if (normOrigin.lat < -90 || normOrigin.lat > 90 || normOrigin.lon < -180 || normOrigin.lon > 180) {
     const err = new Error("Origin coordinates out of valid geographic range");
     err.code = "VALIDATION_ERROR";
     err.status = 400;
     throw err;
   }
 
-  if (destination.lat < -90 || destination.lat > 90 || destination.lon < -180 || destination.lon > 180) {
+  if (normDest.lat < -90 || normDest.lat > 90 || normDest.lon < -180 || normDest.lon > 180) {
     const err = new Error("Destination coordinates out of valid geographic range");
     err.code = "VALIDATION_ERROR";
     err.status = 400;
     throw err;
   }
 
+  // Prevent identical origin and destination
+  const latDiff = Math.abs(normOrigin.lat - normDest.lat);
+  const lonDiff = Math.abs(normOrigin.lon - normDest.lon);
+  if (latDiff < 0.00005 && lonDiff < 0.00005) {
+    const err = new Error("Origin and destination cannot be identical location");
+    err.code = "VALIDATION_ERROR";
+    err.status = 400;
+    throw err;
+  }
+
   // Regional bounding coverage check
-  const originInside = isWithinRegionalCoverage(origin.lat, origin.lon);
-  const destInside = isWithinRegionalCoverage(destination.lat, destination.lon);
+  const originInside = isWithinRegionalCoverage(normOrigin.lat, normOrigin.lon);
+  const destInside = isWithinRegionalCoverage(normDest.lat, normDest.lon);
 
   if (!originInside || !destInside) {
     const err = new Error(
@@ -235,18 +311,19 @@ export async function calculateRoute({
     throw err;
   }
 
-  // Mode validation
-  if (mode === "safe" || mode === "balanced") {
+  // Route mode validation
+  const normalizedMode = String(mode).toLowerCase();
+  if (normalizedMode === "safe" || normalizedMode === "balanced") {
     const err = new Error(
-      `Route mode '${mode}' will be enabled in Stage 3 (Risk-Aware Routing Layer). Only 'fastest' physical routing is active currently.`
+      `Route mode '${mode}' will be enabled in the Risk-Aware Routing Layer. Only 'fastest' physical routing is active currently.`
     );
     err.code = "MODE_NOT_IMPLEMENTED";
     err.status = 501;
     throw err;
   }
 
-  if (mode !== "fastest") {
-    const err = new Error(`Unsupported route mode '${mode}'. Supported modes: fastest.`);
+  if (normalizedMode !== "fastest" && normalizedMode !== "car" && normalizedMode !== "auto") {
+    const err = new Error(`Unsupported route mode '${mode}'. Supported modes: fastest, car.`);
     err.code = "VALIDATION_ERROR";
     err.status = 400;
     throw err;
@@ -260,13 +337,13 @@ export async function calculateRoute({
   const clampedAlternatives = Math.max(0, Math.min(4, parseInt(alternatives, 10) || 0));
   const valhallaPayload = {
     locations: [
-      { lat: origin.lat, lon: origin.lon, type: "break" },
-      { lat: destination.lat, lon: destination.lon, type: "break" },
+      { lat: normOrigin.lat, lon: normOrigin.lon, type: "break" },
+      { lat: normDest.lat, lon: normDest.lon, type: "break" },
     ],
     costing: costingProfile,
     alternates: clampedAlternatives,
     directions_options: {
-      units: "kilometers",
+      units: units === "miles" ? "miles" : "kilometers",
       language: "en-US",
     },
   };
@@ -342,7 +419,7 @@ export async function calculateRoute({
     success: true,
     routingEngine: "resq",
     routeId,
-    mode: "fastest",
+    mode: normalizedMode === "car" ? "car" : "fastest",
     vehicle: {
       type: normalizedVehicle,
       costingProfile,
