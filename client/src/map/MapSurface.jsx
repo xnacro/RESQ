@@ -29,14 +29,47 @@ export function MapSurface({
   const cursorStore = useCursorStore()
 
   // Helper to attach risk grid & disaster event layers to MapLibre
-  const setupLayers = useCallback((map) => {
+  const setupLayers = useCallback((map, currentMode = mode) => {
     if (!map || !map.isStyleLoaded()) return
 
     const styleLayers = map.getStyle().layers || []
     const firstSymbolLayer = styleLayers.find((l) => l.type === 'symbol')
     const beforeLabelId = firstSymbolLayer ? firstSymbolLayer.id : undefined
 
-    // 1. Add 500m Risk Grid Source & Layers below labels
+    // 1. Add 3D Extrusion Buildings Layer for OpenFreeMap 3D Mode
+    if (currentMode === MAP_MODES.D3 && map.getSource('openmaptiles') && !map.getLayer('3d-buildings')) {
+      map.addLayer(
+        {
+          id: '3d-buildings',
+          source: 'openmaptiles',
+          'source-layer': 'building',
+          type: 'fill-extrusion',
+          minzoom: 13,
+          paint: {
+            'fill-extrusion-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'render_height'],
+              0, '#e2e8f0',
+              20, '#cbd5e1',
+              50, '#94a3b8',
+            ],
+            'fill-extrusion-height': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              13, 0,
+              15.5, ['coalesce', ['get', 'render_height'], 10],
+            ],
+            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+            'fill-extrusion-opacity': 0.85,
+          },
+        },
+        beforeLabelId,
+      )
+    }
+
+    // 2. Add 500m Risk Grid Source & Layers below labels
     if (!map.getSource('risk-grid-source')) {
       map.addSource('risk-grid-source', {
         type: 'geojson',
@@ -100,7 +133,7 @@ export function MapSurface({
       })
     }
 
-    // 2. Add Selected Grid Highlight Layer
+    // 3. Add Selected Grid Highlight Layer
     if (!map.getSource('selected-grid-highlight-source')) {
       map.addSource('selected-grid-highlight-source', {
         type: 'geojson',
@@ -142,7 +175,7 @@ export function MapSurface({
       )
     }
 
-    // 3. Add Active Disaster Events Source & Layers
+    // 4. Add Active Disaster Events Source & Layers
     if (!map.getSource('active-events-source')) {
       map.addSource('active-events-source', {
         type: 'geojson',
@@ -217,7 +250,7 @@ export function MapSurface({
       })
     }
 
-    // 4. Add WebGL User Location Marker Layer (GPU accelerated, guaranteed render)
+    // 5. Add WebGL User Location Marker Layer (GPU accelerated)
     if (!map.getSource('user-location-source')) {
       map.addSource('user-location-source', {
         type: 'geojson',
@@ -229,12 +262,12 @@ export function MapSurface({
         type: 'circle',
         source: 'user-location-source',
         paint: {
-          'circle-radius': 20,
+          'circle-radius': 22,
           'circle-color': '#2563eb',
-          'circle-opacity': 0.25,
-          'circle-stroke-width': 1.5,
+          'circle-opacity': 0.3,
+          'circle-stroke-width': 2,
           'circle-stroke-color': '#2563eb',
-          'circle-stroke-opacity': 0.6,
+          'circle-stroke-opacity': 0.7,
         },
       })
 
@@ -251,7 +284,7 @@ export function MapSurface({
         },
       })
     }
-  }, [onGridSelect, onEventSelect])
+  }, [mode, onGridSelect, onEventSelect])
 
   // Helper to fetch visible grid cells for current viewport
   const refreshViewportGrids = useCallback(async () => {
@@ -337,7 +370,7 @@ export function MapSurface({
     map.on('load', () => {
       setMapLoaded(true)
       map.resize()
-      setupLayers(map)
+      setupLayers(map, mode)
       refreshViewportGrids()
       refreshActiveEvents()
       if (onMapReady) onMapReady(map)
@@ -389,7 +422,7 @@ export function MapSurface({
       map.remove()
       mapRef.current = null
     }
-  }, [setupLayers, refreshViewportGrids, refreshActiveEvents])
+  }, [mode, setupLayers, refreshViewportGrids, refreshActiveEvents])
 
   // 2. Handle Map Mode Changes (Normal, Liberty, 3D, Terrain, Satellite, Hybrid, RESQ)
   useEffect(() => {
@@ -404,7 +437,7 @@ export function MapSurface({
 
     map.once('style.load', () => {
       map.resize()
-      setupLayers(map)
+      setupLayers(map, mode)
       refreshViewportGrids()
       refreshActiveEvents()
     })
@@ -467,18 +500,13 @@ export function MapSurface({
 
       if (!markerRef.current) {
         const el = document.createElement('div')
-        el.style.width = '48px'
-        el.style.height = '48px'
-        el.style.position = 'relative'
-        el.style.display = 'flex'
-        el.style.alignItems = 'center'
-        el.style.justifyContent = 'center'
-        el.style.pointerEvents = 'auto'
-        el.style.cursor = 'pointer'
+        el.className = 'resq-user-marker'
         el.innerHTML = `
-          <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(37,99,235,0.25); animation:pulseRing 2s infinite ease-out;"></div>
-          <div style="position:relative; width:22px; height:22px; border-radius:50%; background:#2563eb; border:3px solid #ffffff; box-shadow:0 2px 10px rgba(0,0,0,0.5); z-index:2; display:flex; align-items:center; justify-content:center;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#ffffff;"></div>
+          <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
+            <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(37,99,235,0.3); animation:pulseRing 2s infinite ease-out;"></div>
+            <div style="position:relative; width:22px; height:22px; border-radius:50%; background:#2563eb; border:3.5px solid #ffffff; box-shadow:0 3px 12px rgba(0,0,0,0.5); z-index:2; display:flex; align-items:center; justify-content:center;">
+              <div style="width:6px; height:6px; border-radius:50%; background:#ffffff;"></div>
+            </div>
           </div>
         `
         markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })

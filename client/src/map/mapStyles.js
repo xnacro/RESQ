@@ -1,5 +1,5 @@
-// MapLibre and OpenFreeMap 100% Free Style Configurations
-// Zero API keys required, zero watermarks, 100% open-source cartography
+// MapLibre and OpenFreeMap 100% Vector Tile Style Configurations
+// Uses official OpenFreeMap vector tile styles for Bright, Liberty, 3D, and Positron
 
 export const MAP_MODES = {
   NORMAL: 'normal',
@@ -11,47 +11,10 @@ export const MAP_MODES = {
   RESQ: 'resq',
 }
 
-// 100% Free OpenFreeMap & Humanitarian OpenStreetMap Base Style
-export const OPEN_FREE_MAP_BASE_STYLE = Object.freeze({
-  version: 8,
-  sources: {
-    openmaptiles: {
-      type: 'vector',
-      tiles: [
-        'https://tiles.openfreemap.org/planet/20260823_080002_pt/{z}/{x}/{y}.pbf',
-      ],
-      minzoom: 0,
-      maxzoom: 14,
-      attribution: '<a href="https://openfreemap.org" target="_blank">&copy; OpenFreeMap</a>, <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>',
-    },
-    openFreeMapRaster: {
-      type: 'raster',
-      tiles: [
-        'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-        'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-      ],
-      tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors, Humanitarian OpenStreetMap Team',
-      maxzoom: 19,
-    },
-  },
-  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-  sprite: 'https://tiles.openfreemap.org/sprites/ofm_f384/ofm',
-  layers: [
-    {
-      id: 'openfreemap-base',
-      type: 'raster',
-      source: 'openFreeMapRaster',
-      minzoom: 0,
-      maxzoom: 22,
-    },
-  ],
-})
-
-// OpenFreeMap vector styles (Remote JSON)
+// Official OpenFreeMap vector tile styles
 export const OPEN_FREE_MAP_STYLES = Object.freeze({
-  LIBERTY: 'https://tiles.openfreemap.org/styles/liberty',
   BRIGHT: 'https://tiles.openfreemap.org/styles/bright',
+  LIBERTY: 'https://tiles.openfreemap.org/styles/liberty',
   POSITRON: 'https://tiles.openfreemap.org/styles/positron',
 })
 
@@ -105,16 +68,16 @@ export const STANDALONE_HYBRID_STYLE = Object.freeze({
   ],
 })
 
-// Returns the map style definition for the specified mode
+// Returns the vector style definition for the specified mode
 export function getMapStyle(mode = MAP_MODES.NORMAL) {
   switch (mode) {
     case MAP_MODES.NORMAL:
-      return OPEN_FREE_MAP_BASE_STYLE
+      return OPEN_FREE_MAP_STYLES.BRIGHT
     case MAP_MODES.LIBERTY:
       return OPEN_FREE_MAP_STYLES.LIBERTY
     case MAP_MODES.D3:
     case MAP_MODES.TERRAIN:
-      return OPEN_FREE_MAP_BASE_STYLE
+      return OPEN_FREE_MAP_STYLES.LIBERTY
     case MAP_MODES.SATELLITE:
       return STANDALONE_SATELLITE_STYLE
     case MAP_MODES.HYBRID:
@@ -122,6 +85,6 @@ export function getMapStyle(mode = MAP_MODES.NORMAL) {
     case MAP_MODES.RESQ:
       return OPEN_FREE_MAP_STYLES.POSITRON
     default:
-      return OPEN_FREE_MAP_BASE_STYLE
+      return OPEN_FREE_MAP_STYLES.BRIGHT
   }
 }
