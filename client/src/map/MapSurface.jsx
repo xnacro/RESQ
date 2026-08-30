@@ -219,35 +219,7 @@ export function MapSurface({
       })
     }
 
-    // 5. Selected Grid Cell Highlight Polygon
-    if (!map.getSource('selected-grid-highlight-source')) {
-      map.addSource('selected-grid-highlight-source', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      })
-
-      map.addLayer(
-        {
-          id: 'selected-grid-highlight-fill',
-          type: 'fill',
-          source: 'selected-grid-highlight-source',
-          paint: getSelectedGridFillStyle(),
-        },
-        beforeId
-      )
-
-      map.addLayer(
-        {
-          id: 'selected-grid-highlight-line',
-          type: 'line',
-          source: 'selected-grid-highlight-source',
-          paint: getSelectedGridOutlineStyle(),
-        },
-        beforeId
-      )
-    }
-
-    // 6. Safe & Risk Route Segments
+    // 5. Safe & Risk Route Segments
     if (!map.getSource('resq-route-source')) {
       const routeStyles = getRouteLayerStyles()
       const currentRoute = routeDataRef.current
@@ -633,21 +605,6 @@ export function MapSurface({
             })
           }
         }
-        if (selectedGridGeometryRef.current) {
-          const gridSource = map.getSource('selected-grid-highlight-source')
-          if (gridSource) {
-            gridSource.setData({
-              type: 'FeatureCollection',
-              features: [
-                {
-                  type: 'Feature',
-                  geometry: selectedGridGeometryRef.current,
-                  properties: { risk_status: selectedGridStatusRef.current || 'CRITICAL' },
-                },
-              ],
-            })
-          }
-        }
       })
       return
     }
@@ -717,41 +674,7 @@ export function MapSurface({
     map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
   }, [mode, mapReady, addCustomLayers, refreshViewportGrids, refreshActiveEvents, updateLocationMarker])
 
-  // 3. Render Selected Grid Cell Highlight Polygon
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !mapReady) return
-
-    const applyGrid = () => {
-      const source = map.getSource('selected-grid-highlight-source')
-      if (!source) return
-
-      if (selectedGridGeometry) {
-        source.setData({
-          type: 'FeatureCollection',
-          features: [
-            {
-              type: 'Feature',
-              geometry: selectedGridGeometry,
-              properties: {
-                risk_status: selectedGridStatus || 'CRITICAL',
-              },
-            },
-          ],
-        })
-      } else {
-        source.setData({ type: 'FeatureCollection', features: [] })
-      }
-    }
-
-    if (map.isStyleLoaded()) {
-      applyGrid()
-    } else {
-      map.once('style.load', applyGrid)
-    }
-  }, [selectedGridGeometry, selectedGridStatus, mapReady])
-
-  // 4. Update Marker Position When selectedLocation changes
+  // 3. Update Marker Position When selectedLocation changes
   useEffect(() => {
     if (!mapReady) return
     updateLocationMarker(selectedLocation)
