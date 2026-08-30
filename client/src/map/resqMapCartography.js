@@ -75,9 +75,10 @@ export function buildResqVectorStyle({ theme = 'light', mode = 'normal' } = {}) 
       },
       'resq-terrain-dem': {
         type: 'raster-dem',
-        tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'],
+        encoding: 'terrarium',
+        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
         tileSize: 256,
-        maxzoom: 14,
+        maxzoom: 15,
       },
     },
     glyphs: GLYPHS_URL,

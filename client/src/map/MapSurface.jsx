@@ -90,28 +90,35 @@ export function MapSurface({
     if (!map.getSource('resq-terrain-dem')) {
       map.addSource('resq-terrain-dem', {
         type: 'raster-dem',
-        tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'],
+        encoding: 'terrarium',
+        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
         tileSize: 256,
-        maxzoom: 14,
+        maxzoom: 15,
       })
     }
 
     // 2. Hillshade Layer for 3D Terrain mode
     if (!map.getLayer('resq-hillshade') && map.getSource('resq-terrain-dem')) {
+      const beforeLand = map.getLayer('resq-landcover-glacier')
+        ? 'resq-landcover-glacier'
+        : map.getLayer('resq-water-area')
+        ? 'resq-water-area'
+        : undefined
       map.addLayer(
         {
           id: 'resq-hillshade',
           type: 'hillshade',
           source: 'resq-terrain-dem',
-          layout: { visibility: 'none' },
+          layout: { visibility: mode === MAP_MODES.TERRAIN || mode === MAP_MODES.D3 ? 'visible' : 'none' },
           paint: {
-            'hillshade-exaggeration': 0.85,
-            'hillshade-shadow-color': '#334155',
+            'hillshade-exaggeration': 0.90,
+            'hillshade-shadow-color': '#1e293b',
             'hillshade-highlight-color': '#ffffff',
-            'hillshade-accent-color': '#38bdf8',
+            'hillshade-accent-color': '#0ea5e9',
+            'hillshade-illumination-direction': 315,
           },
         },
-        'resq-background'
+        beforeLand
       )
     }
 
