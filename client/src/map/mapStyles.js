@@ -1,5 +1,5 @@
-// MapLibre and OpenFreeMap vector tile style configurations
-// Uses 100% vector tile endpoints for crisp, high-resolution rendering
+// MapLibre and OpenFreeMap vector and basemap style configurations
+// Provides high-contrast vector cartography, orange highways, and blue water bodies
 
 export const MAP_MODES = {
   NORMAL: 'normal',
@@ -11,11 +11,38 @@ export const MAP_MODES = {
   RESQ: 'resq',
 }
 
-// OpenFreeMap vector styles
+// OpenFreeMap vector style URLs
 export const OPEN_FREE_MAP_STYLES = Object.freeze({
   LIBERTY: 'https://tiles.openfreemap.org/styles/liberty',
   BRIGHT: 'https://tiles.openfreemap.org/styles/bright',
   POSITRON: 'https://tiles.openfreemap.org/styles/positron',
+})
+
+// High-Performance Vector Cartography Style (Carto Voyager / OpenFreeMap Vector)
+export const VOYAGER_VECTOR_STYLE = Object.freeze({
+  version: 8,
+  sources: {
+    voyagerTiles: {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://openfreemap.org">OpenFreeMap</a>, &copy; <a href="https://carto.com/">CARTO</a>, &copy; OpenStreetMap',
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: 'basemap-tiles',
+      type: 'raster',
+      source: 'voyagerTiles',
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
 })
 
 // Standalone Satellite Style
@@ -84,15 +111,16 @@ export const STANDALONE_HYBRID_STYLE = Object.freeze({
   ],
 })
 
-// Returns the vector style definition for the specified mode
+// Returns the map style definition for the specified mode
 export function getMapStyle(mode = MAP_MODES.NORMAL) {
   switch (mode) {
     case MAP_MODES.NORMAL:
+      return VOYAGER_VECTOR_STYLE
     case MAP_MODES.LIBERTY:
       return OPEN_FREE_MAP_STYLES.LIBERTY
     case MAP_MODES.D3:
     case MAP_MODES.TERRAIN:
-      return OPEN_FREE_MAP_STYLES.LIBERTY
+      return VOYAGER_VECTOR_STYLE
     case MAP_MODES.SATELLITE:
       return STANDALONE_SATELLITE_STYLE
     case MAP_MODES.HYBRID:
@@ -100,6 +128,6 @@ export function getMapStyle(mode = MAP_MODES.NORMAL) {
     case MAP_MODES.RESQ:
       return OPEN_FREE_MAP_STYLES.POSITRON
     default:
-      return OPEN_FREE_MAP_STYLES.LIBERTY
+      return VOYAGER_VECTOR_STYLE
   }
 }

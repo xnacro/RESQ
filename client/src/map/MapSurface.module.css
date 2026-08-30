@@ -20,8 +20,8 @@
 
 .locationPin {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -30,8 +30,8 @@
 
 .pinCore {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--accent);
   border: 3px solid #ffffff;
@@ -41,12 +41,17 @@
 
 .pinPulse {
   position: absolute;
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: rgba(37, 99, 235, 0.3);
-  animation: radarPulse 2s infinite ease-out;
+  animation: pulseRing 2s infinite ease-out;
   z-index: 1;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.3); opacity: 0.95; }
+  100% { transform: scale(2.4); opacity: 0; }
 }
 
 @keyframes radarPulse {

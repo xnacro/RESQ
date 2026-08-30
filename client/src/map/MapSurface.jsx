@@ -345,7 +345,6 @@ export function MapSurface({
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    // Prevent redundant style resets on initial mount
     if (currentModeRef.current === mode) return
     currentModeRef.current = mode
 
@@ -400,12 +399,21 @@ export function MapSurface({
     if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
       if (!markerRef.current) {
         const el = document.createElement('div')
-        el.className = styles.locationPin
+        el.style.width = '48px'
+        el.style.height = '48px'
+        el.style.position = 'relative'
+        el.style.display = 'flex'
+        el.style.alignItems = 'center'
+        el.style.justifyContent = 'center'
+        el.style.pointerEvents = 'auto'
+        el.style.cursor = 'pointer'
         el.innerHTML = `
-          <div class="${styles.pinPulse}"></div>
-          <div class="${styles.pinCore}"></div>
+          <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(37,99,235,0.3); animation:pulseRing 2s infinite ease-out;"></div>
+          <div style="position:relative; width:22px; height:22px; border-radius:50%; background:#2563eb; border:3px solid #ffffff; box-shadow:0 2px 10px rgba(0,0,0,0.5); z-index:2; display:flex; align-items:center; justify-content:center;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#ffffff;"></div>
+          </div>
         `
-        markerRef.current = new maplibregl.Marker({ element: el })
+        markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
           .setLngLat([selectedLocation.lon, selectedLocation.lat])
           .addTo(map)
       } else {
