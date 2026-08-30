@@ -66,6 +66,9 @@ export function MapSurface({
   const popupRef = useRef(null)
   const modeRef = useRef(mode)
   const selectedLocationRef = useRef(selectedLocation)
+  const routeDataRef = useRef(routeData)
+  const selectedGridGeometryRef = useRef(selectedGridGeometry)
+  const selectedGridStatusRef = useRef(selectedGridStatus)
   const [mapReady, setMapReady] = useState(false)
 
   const viewportStore = useViewportStore()
@@ -77,6 +80,9 @@ export function MapSurface({
     callbacksRef.current = { onMapClick, onGridSelect, onEventSelect, onMapReady }
     selectedLocationRef.current = selectedLocation
     modeRef.current = mode
+    routeDataRef.current = routeData
+    selectedGridGeometryRef.current = selectedGridGeometry
+    selectedGridStatusRef.current = selectedGridStatus
   })
 
   // Add all custom RESQ operational layers
@@ -244,9 +250,24 @@ export function MapSurface({
     // 6. Safe & Risk Route Segments
     if (!map.getSource('resq-route-source')) {
       const routeStyles = getRouteLayerStyles()
+      const currentRoute = routeDataRef.current
+      const initialFeatures =
+        currentRoute && currentRoute.geometry && currentRoute.geometry.length > 0
+          ? [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
+                  coordinates: currentRoute.geometry,
+                },
+                properties: {},
+              },
+            ]
+          : []
+
       map.addSource('resq-route-source', {
         type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
+        data: { type: 'FeatureCollection', features: initialFeatures },
       })
 
       map.addLayer(
@@ -593,6 +614,39 @@ export function MapSurface({
         refreshActiveEvents()
         if (selectedLocationRef.current) {
           updateLocationMarker(selectedLocationRef.current, map)
+        }
+        if (routeDataRef.current && routeDataRef.current.geometry && routeDataRef.current.geometry.length > 0) {
+          const routeSource = map.getSource('resq-route-source')
+          if (routeSource) {
+            routeSource.setData({
+              type: 'FeatureCollection',
+              features: [
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: routeDataRef.current.geometry,
+                  },
+                  properties: {},
+                },
+              ],
+            })
+          }
+        }
+        if (selectedGridGeometryRef.current) {
+          const gridSource = map.getSource('selected-grid-highlight-source')
+          if (gridSource) {
+            gridSource.setData({
+              type: 'FeatureCollection',
+              features: [
+                {
+                  type: 'Feature',
+                  geometry: selectedGridGeometryRef.current,
+                  properties: { risk_status: selectedGridStatusRef.current || 'CRITICAL' },
+                },
+              ],
+            })
+          }
         }
       })
       return

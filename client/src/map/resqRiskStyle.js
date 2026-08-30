@@ -94,19 +94,19 @@ export function getEventCirclePaint() {
 export function getRouteLayerStyles() {
   return {
     glow: {
-      'line-color': '#3b82f6',
-      'line-width': 14,
-      'line-opacity': 0.35,
-      'line-blur': 4,
+      'line-color': '#00f0ff',
+      'line-width': 16,
+      'line-opacity': 0.45,
+      'line-blur': 5,
     },
     casing: {
-      'line-color': '#1e3a8a',
-      'line-width': 8.5,
-      'line-opacity': 0.95,
+      'line-color': '#ffffff',
+      'line-width': 9,
+      'line-opacity': 1,
     },
     fill: {
       'line-color': '#2563eb',
-      'line-width': 5.5,
+      'line-width': 6,
       'line-opacity': 1,
     },
     layout: {
