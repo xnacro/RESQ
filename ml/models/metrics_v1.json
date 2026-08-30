@@ -1,9 +1,9 @@
 {
   "model_version": "v1",
-  "accuracy_logistic_regression": 0.76,
+  "accuracy_logistic_regression": 0.8,
   "accuracy_linear_svc": 0.8,
-  "macro_f1": 0.7222222222222222,
-  "weighted_f1": 0.7511111111111112,
+  "macro_f1": 0.7598096348096348,
+  "weighted_f1": 0.7883605283605283,
   "classes": [
     "ACTIVE_DISASTER",
     "GENERAL_RISK",
@@ -24,15 +24,15 @@
       "support": 5
     },
     "HISTORICAL_DISASTER": {
-      "precision": 0.5714285714285714,
+      "precision": 0.6666666666666666,
       "recall": 0.8,
-      "f1": 0.6666666666666666,
+      "f1": 0.7272727272727273,
       "support": 5
     },
     "IRRELEVANT": {
       "precision": 1.0,
-      "recall": 0.7142857142857143,
-      "f1": 0.8333333333333334,
+      "recall": 0.8571428571428571,
+      "f1": 0.9230769230769231,
       "support": 7
     }
   },
@@ -58,11 +58,11 @@
     [
       0,
       0,
-      2,
-      5
+      1,
+      6
     ]
   ],
   "train_size": 100,
   "test_size": 25,
-  "evaluated_at": "2026-08-30T17:03:15.547786"
+  "evaluated_at": "2026-08-30T17:05:18.849137"
 }

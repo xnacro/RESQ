@@ -93,7 +93,7 @@ def main():
     # 4. Fit Logistic Regression Classifier
     clf = LogisticRegression(
         class_weight="balanced",
-        C=1.0,
+        C=3.0,
         solver="lbfgs",
         max_iter=1000,
         random_state=42,
