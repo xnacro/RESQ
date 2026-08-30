@@ -353,9 +353,9 @@ export function LoginView({ initialMode = 'login' }) {
         <div className={styles.topBranding}>
           <div className={styles.brandLogoRow}>
             <img
-              src="/resq-logo.png"
+              src="/logo.png"
               alt="resQ Logo"
-              style={{ height: '62px', width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
+              style={{ height: '62px', width: 'auto', objectFit: 'contain' }}
             />
           </div>
           <div className={styles.brandBadge}>

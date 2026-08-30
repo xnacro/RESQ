@@ -89,12 +89,8 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
     <header className={styles.bar}>
       <div className={styles.brandWrapper}>
         <Link to="/" className={styles.brand}>
-          <BrandMark height={32} />
+          <BrandMark height={44} />
         </Link>
-        <div className={styles.liveBadge}>
-          <span className={styles.liveDot} />
-          <span className={styles.liveText}>LIVE</span>
-        </div>
       </div>
 
       {showSearch && (

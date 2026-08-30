@@ -452,7 +452,6 @@ export function ContextPanel({
                       <Radio size={14} className={styles.sectionIcon} />
                       <h4 className={styles.sectionHeading}>Nearby Safety Resources</h4>
                     </div>
-                    <p className={styles.sectionSubtitle}>Safety facilities around your current location</p>
 
                     <div className={styles.resourceList}>
                       <div className={styles.resourceCard}>
