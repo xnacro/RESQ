@@ -570,11 +570,13 @@ export function MapSurface({
     if (!map || !mapReady) return
 
     const applyRoute = () => {
+      const existingSource = map.getSource('resq-route-source')
+
       if (routeData && routeData.geometry && routeData.geometry.length > 0) {
         addCustomLayers(map)
-        const source = map.getSource('resq-route-source')
-        if (source) {
-          source.setData({
+        const activeSource = map.getSource('resq-route-source')
+        if (activeSource) {
+          activeSource.setData({
             type: 'Feature',
             geometry: {
               type: 'LineString',
@@ -664,7 +666,9 @@ export function MapSurface({
           )
         }
       } else {
-        source.setData({ type: 'FeatureCollection', features: [] })
+        if (existingSource) {
+          existingSource.setData({ type: 'FeatureCollection', features: [] })
+        }
         if (originMarkerRef.current) {
           originMarkerRef.current.remove()
           originMarkerRef.current = null
