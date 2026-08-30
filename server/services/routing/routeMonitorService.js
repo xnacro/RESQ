@@ -50,6 +50,7 @@ export async function registerActiveRouteSession({
     lastEvaluationTimestamp: Date.now(),
     lastRerouteTimestamp: 0,
     rerouteInProgress: false,
+    pendingRerouteReason: null,
     status: "NAVIGATING",
   };
 
@@ -104,6 +105,8 @@ export function getSessionMonitoringStatus(sessionId) {
     remainingGridsCount: session.remainingGridIds.size,
     lastRerouteTimestamp: session.lastRerouteTimestamp,
     rerouteInProgress: session.rerouteInProgress,
+    requiresReroute: Boolean(session.pendingRerouteReason),
+    pendingRerouteReason: session.pendingRerouteReason,
   };
 }
 
@@ -178,6 +181,12 @@ export async function evaluateGridRiskUpdate(gridId, newRiskData = {}) {
     const cooldownElapsed = now - session.lastRerouteTimestamp > ROUTE_MONITOR_CONFIG.REROUTE_COOLDOWN_MS;
     const requiresReroute = (isNowBlocked || isMateriallyRiskier) && !session.rerouteInProgress && (cooldownElapsed || isNowBlocked);
 
+    if (requiresReroute) {
+      session.pendingRerouteReason = isNowBlocked
+        ? "Confirmed road or bridge blockage detected on route ahead"
+        : `Active risk increased by ${Math.round(riskDelta)} points along remaining corridor`;
+    }
+
     affectedSessions.push({
       sessionId,
       routeVersion: session.routeVersion,
@@ -187,6 +196,7 @@ export async function evaluateGridRiskUpdate(gridId, newRiskData = {}) {
       newRouteStatus,
       isBlocked: isNowBlocked,
       requiresReroute,
+      reason: session.pendingRerouteReason,
     });
   }
 
@@ -219,6 +229,7 @@ export async function executeDynamicReroute(sessionId, overridePosition = null) 
 
     if (!newSafePlan.success || !newSafePlan.selectedRoute) {
       session.rerouteInProgress = false;
+      session.pendingRerouteReason = null;
       session.status = "REROUTE_FAILED";
       return {
         success: false,
@@ -239,6 +250,7 @@ export async function executeDynamicReroute(sessionId, overridePosition = null) 
     session.hazards = newRoute.hazards || [];
     session.lastRerouteTimestamp = Date.now();
     session.rerouteInProgress = false;
+    session.pendingRerouteReason = null;
     session.status = "NAVIGATING";
 
     return {
@@ -252,6 +264,7 @@ export async function executeDynamicReroute(sessionId, overridePosition = null) 
     };
   } catch (err) {
     session.rerouteInProgress = false;
+    session.pendingRerouteReason = null;
     session.status = "REROUTE_FAILED";
     console.error(`Dynamic reroute error for session ${sessionId}:`, err.message);
     throw err;

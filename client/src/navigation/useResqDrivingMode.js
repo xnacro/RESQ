@@ -183,17 +183,37 @@ export function useResqDrivingMode(map) {
         });
 
         if (rerouteRes.success && rerouteRes.newRoute) {
-          applyReroute(rerouteRes.newRoute, rerouteRes.explanation);
+          const newRoute = rerouteRes.newRoute;
+          const isStillBlocked = Boolean(newRoute.riskSnapshot?.isBlocked);
+          const isLowerRisk = (newRoute.riskSnapshot?.meanRisk || 0) < (routeData?.riskSnapshot?.meanRisk || 100);
+
+          applyReroute(newRoute, rerouteRes.explanation);
           if (cameraManagerRef.current && cameraFollowing) {
             cameraManagerRef.current.followVehicle(currentCoord, lastHeadingRef.current, 0, true);
           }
 
-          setRerouteNotice({
-            active: true,
-            type: "SAFER_FOUND",
-            message: "SAFER ROUTE FOUND",
-            detail: rerouteRes.explanation?.reason || "Safer bypass selected avoiding active hazard.",
-          });
+          if (!isStillBlocked && isLowerRisk) {
+            setRerouteNotice({
+              active: true,
+              type: "SAFER_FOUND",
+              message: "SAFER ROUTE FOUND",
+              detail: rerouteRes.explanation?.reason || "Safer bypass selected avoiding active hazard.",
+            });
+          } else if (isStillBlocked) {
+            setRerouteNotice({
+              active: true,
+              type: "OFF_ROUTE",
+              message: "NO SAFER BYPASS AVAILABLE",
+              detail: "All alternatives have active blockages. Proceed with extreme caution.",
+            });
+          } else {
+            setRerouteNotice({
+              active: true,
+              type: "SAFER_FOUND",
+              message: "ROUTE UPDATED",
+              detail: rerouteRes.explanation?.reason || "Route updated from current position.",
+            });
+          }
 
           if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
           noticeTimerRef.current = setTimeout(() => {
@@ -214,7 +234,7 @@ export function useResqDrivingMode(map) {
         isRerouteInFlightRef.current = false;
       }
     },
-    [sessionId, origin, cameraFollowing, setRerouteNotice, applyReroute]
+    [sessionId, origin, routeData, cameraFollowing, setRerouteNotice, applyReroute]
   );
 
   // 4. Register Session for Live 500m Grid Risk Monitoring
@@ -264,9 +284,9 @@ export function useResqDrivingMode(map) {
             hazards: data.upcomingHazards,
           });
 
-          // If remaining route becomes blocked or critical, trigger automatic reroute
-          if (data.riskSnapshot?.isBlocked || data.riskSnapshot?.routeStatus === "BLOCKED") {
-            triggerRiskReroute("Critical road or bridge blockage detected ahead.");
+          // Only trigger automatic reroute when backend detects a NEW risk escalation/event
+          if (data.requiresReroute && data.pendingRerouteReason) {
+            triggerRiskReroute(data.pendingRerouteReason);
           }
         }
       } catch (e) {

@@ -31,32 +31,39 @@ export function computeCandidateScore(candidate, baselineMinDurationSec = 1) {
 }
 
 // Formulates evidence-based human-readable explanation comparing selected safe route to fastest route
-export function generateRouteExplanation(selectedRoute, fastestRoute) {
-  if (!fastestRoute || selectedRoute === fastestRoute) {
-    if (selectedRoute.riskSnapshot?.isBlocked) {
+export function generateRouteExplanation(selectedRoute, fastestRoute, totalCandidates = 1) {
+  const isSelectedBlocked = Boolean(selectedRoute?.riskSnapshot?.isBlocked);
+  const isFastestBlocked = Boolean(fastestRoute?.riskSnapshot?.isBlocked);
+
+  // When only one physical road corridor exists
+  if (!fastestRoute || selectedRoute === fastestRoute || totalCandidates <= 1) {
+    if (isSelectedBlocked) {
       return {
-        reason: "Active route crosses confirmed infrastructure blockage. Proceed with extreme caution.",
+        reason: "Only one physical road corridor available. Route crosses active infrastructure blockage.",
         avoidedHazards: [],
         riskReduction: 0,
         extraTimeMinutes: 0,
         isBlocked: true,
+        hasAlternative: false,
       };
     }
-    if ((selectedRoute.riskSnapshot?.meanRisk || 0) < 25) {
+    if ((selectedRoute?.riskSnapshot?.meanRisk || 0) < 25) {
       return {
-        reason: "Direct route follows baseline low-risk corridor with no active disaster hazards.",
+        reason: "Direct corridor follows baseline low-risk route with no active disaster hazards.",
         avoidedHazards: [],
         riskReduction: 0,
         extraTimeMinutes: 0,
         isBlocked: false,
+        hasAlternative: false,
       };
     }
     return {
-      reason: "Standard physical route evaluated against active 500m risk grid baseline.",
+      reason: "Direct road corridor evaluated against active 500m risk grid baseline.",
       avoidedHazards: [],
       riskReduction: 0,
       extraTimeMinutes: 0,
       isBlocked: false,
+      hasAlternative: false,
     };
   }
 
@@ -74,13 +81,17 @@ export function generateRouteExplanation(selectedRoute, fastestRoute) {
   const avoidedHazards = fastHazards.filter((h) => !safeHazardIds.has(h.id));
 
   let reason = "Alternative route selected for reduced disaster vulnerability.";
-  if (fastestRoute.riskSnapshot?.isBlocked && !selectedRoute.riskSnapshot?.isBlocked) {
+  if (isFastestBlocked && !isSelectedBlocked) {
     reason = "Fastest route crosses confirmed road/bridge blockage. Diverted to open bypass corridor.";
+  } else if (isFastestBlocked && isSelectedBlocked) {
+    reason = "All available road corridors cross active blockages. Selected route has lowest critical exposure.";
   } else if (avoidedHazards.length > 0) {
     const topHazard = avoidedHazards[0];
     reason = `Diverted around active ${topHazard.hazardType.toLowerCase().replace(/_/g, " ")} near ${topHazard.locationText || "route corridor"}.`;
-  } else if (riskReduction > 10) {
+  } else if (riskReduction > 5) {
     reason = `Safer corridor reduces route flood and landslide risk by ${riskReduction} points.`;
+  } else {
+    reason = "Alternative route evaluated with comparable safety profile.";
   }
 
   return {
@@ -94,7 +105,8 @@ export function generateRouteExplanation(selectedRoute, fastestRoute) {
     })),
     riskReduction: Math.max(0, riskReduction),
     extraTimeMinutes,
-    isBlocked: Boolean(selectedRoute.riskSnapshot?.isBlocked),
+    isBlocked: isSelectedBlocked,
+    hasAlternative: true,
   };
 }
 
@@ -178,7 +190,7 @@ export async function calculateSafeRoutePlan({
   const selectedRoute = eligiblePool[0];
 
   // Generate explanation comparing selected route to fastest route
-  const explanation = generateRouteExplanation(selectedRoute, fastestCandidate);
+  const explanation = generateRouteExplanation(selectedRoute, fastestCandidate, scoredCandidates.length);
 
   // Return remaining candidates as evaluated alternatives
   const remainingAlternatives = scoredCandidates.filter((c) => c !== selectedRoute);

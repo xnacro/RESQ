@@ -78,7 +78,7 @@ export function RouteSummaryPanel({
   onStartNavigation,
   onClearRoute,
 }) {
-  const { activeRouteMode, calculateRoutePlan, isRouting } = useRouteStore()
+  const { activeRouteMode, calculateRoutePlan, isRouting, routeExplanation } = useRouteStore()
 
   const originName = origin?.displayName || origin?.name || 'Starting Point'
   const destName = destination?.displayName || destination?.name || 'Destination'
@@ -88,7 +88,7 @@ export function RouteSummaryPanel({
   const riskScore = routeData?.riskScore ?? routeData?.riskSnapshot?.meanRisk ?? 0
   const riskStatus = routeData?.riskStatus ?? routeData?.riskSnapshot?.routeStatus ?? 'SAFE'
   const isBlocked = routeData?.isBlocked ?? routeData?.riskSnapshot?.isBlocked ?? false
-  const explanation = routeData?.explanation
+  const explanation = routeData?.explanation || routeExplanation
 
   const riskBadge = getRiskBadge(isBlocked ? 'BLOCKED' : riskStatus, riskScore)
   const RiskIcon = riskBadge.icon
