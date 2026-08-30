@@ -18,6 +18,11 @@ data/
 *.shp
 *.dbf
 *.shx
+*.osm.pbf
+*.pbf
+*.sqlite
+valhalla_tiles/
+*.tar
 
 # Python
 venv/
