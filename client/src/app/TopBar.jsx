@@ -218,8 +218,8 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
           <span className={styles.alertDot} />
         </button>
 
-        {/* User Profile Control or Sign In Button */}
-        {user ? (
+        {/* User Profile Control (Active when authenticated) */}
+        {user && (
           <button
             type="button"
             className={styles.userControl}
@@ -252,17 +252,6 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
                 {user.username ? (user.username.startsWith('@') ? user.username : `@${user.username}`) : user.role}
               </span>
             </div>
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={styles.signInBtn}
-            onClick={() => openAuthModal('login')}
-            title="Sign In to RESQ Command Center"
-            aria-label="Sign In"
-          >
-            <LogIn size={13} />
-            <span>Sign In</span>
           </button>
         )}
 
