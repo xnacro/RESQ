@@ -308,8 +308,10 @@ export const forwardGeocode = async (rawQuery, options = {}) => {
     if (deduped.length >= 8) break;
   }
 
-  // Cache successful result
-  setCache(searchCache, queryKey, deduped);
+  // Cache successful result only when results are found
+  if (deduped.length > 0) {
+    setCache(searchCache, queryKey, deduped);
+  }
 
   return {
     success: true,
