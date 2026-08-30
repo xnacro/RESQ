@@ -139,26 +139,27 @@
   padding: 12px;
   border-radius: 14px;
   border: 1.5px solid rgba(226, 232, 240, 0.8);
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
   gap: 4px;
+  cursor: pointer;
+  text-align: left;
   transition: all var(--dur) var(--ease);
 }
 
-.modeCardActive {
-  background: rgba(239, 246, 255, 0.85);
-  border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+.modeCard:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(191, 219, 254, 0.9);
+  transform: translateY(-1px);
 }
 
-.modeCardDisabled {
-  background: rgba(248, 250, 252, 0.5);
-  border-color: rgba(226, 232, 240, 0.6);
-  opacity: 0.75;
-  cursor: not-allowed;
+.modeCardActive {
+  background: rgba(239, 246, 255, 0.92);
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
 }
 
 .modeCardHeader {
@@ -172,7 +173,7 @@
 }
 
 .safeIcon {
-  color: var(--text-muted);
+  color: #10b981;
 }
 
 .modeCardTitle {
@@ -199,12 +200,58 @@
   color: var(--text-muted);
 }
 
-.comingSoonTag {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--text-faint);
-  margin-top: 2px;
+/* Risk Profile & Safety Reason Banner */
+.riskProfileCard {
+  margin: 0 18px 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
 }
+
+.riskHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.riskLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.riskBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.explanationBox {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.explanationText {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+  font-weight: 500;
+}
+
 
 /* Stats Overview */
 .statsSummary {

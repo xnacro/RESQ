@@ -1,4 +1,4 @@
-// React hook driving engine coordinating GPS, kinematics, maneuvers, off-route detection, and rerouting
+// React hook driving engine coordinating GPS, kinematics, maneuvers, live risk monitoring, and automatic rerouting
 
 import { useEffect, useRef, useCallback } from "react";
 import { useRouteStore } from "../services/routeStore.js";
@@ -11,17 +11,27 @@ import {
   calculateDistanceToShapeIndexKm,
   haversineDistanceMeters,
 } from "./navigationMath.js";
-import { calculateRoute } from "../services/routingApi.js";
+import {
+  calculateRoute,
+  registerRouteMonitor,
+  updateRouteProgress,
+  getRouteMonitorStatus,
+  triggerDynamicReroute,
+  cleanupRouteMonitor,
+} from "../services/routingApi.js";
 
 const OFF_ROUTE_DISTANCE_THRESHOLD_METERS = 35;
 const OFF_ROUTE_SUSTAINED_TIME_MS = 4000;
 const ARRIVAL_DISTANCE_THRESHOLD_METERS = 35;
 const REROUTE_COOLDOWN_MS = 10000;
+const MONITOR_POLL_INTERVAL_MS = 3500;
 
 export function useResqDrivingMode(map) {
   const {
-    routeData,
+    sessionId,
+    origin,
     destination,
+    routeData,
     navigationMode,
     navigationStatus,
     cameraFollowing,
@@ -31,16 +41,21 @@ export function useResqDrivingMode(map) {
     updateNavProgress,
     setCameraFollowing,
     setOffRouteStatus,
+    setRerouteNotice,
+    setRouteRiskMetrics,
     applyReroute,
     triggerArrival,
   } = useRouteStore();
 
   const watchIdRef = useRef(null);
+  const monitorTimerRef = useRef(null);
+  const noticeTimerRef = useRef(null);
   const vehicleMarkerRef = useRef(null);
   const cameraManagerRef = useRef(null);
 
   const prevPositionsRef = useRef([]);
   const lastHeadingRef = useRef(0);
+  const lastKnownCoordRef = useRef(null);
   const offRouteTimerRef = useRef(null);
   const lastRerouteTimeRef = useRef(0);
   const isRerouteInFlightRef = useRef(false);
@@ -73,8 +88,8 @@ export function useResqDrivingMode(map) {
     };
   }, [map, setCameraFollowing]);
 
-  // 2. Automatic Valhalla Reroute Execution
-  const triggerAutoReroute = useCallback(
+  // 2. Off-Route Valhalla Recalculation
+  const triggerOffRouteReroute = useCallback(
     async (currentLat, currentLon) => {
       if (!destination || isRerouteInFlightRef.current) return;
 
@@ -84,6 +99,12 @@ export function useResqDrivingMode(map) {
       lastRerouteTimeRef.current = now;
       isRerouteInFlightRef.current = true;
       setOffRouteStatus(true);
+      setRerouteNotice({
+        active: true,
+        type: "OFF_ROUTE",
+        message: "OFF ROUTE DETECTED",
+        detail: "Recalculating route from current position...",
+      });
 
       if (rerouteAbortControllerRef.current) {
         rerouteAbortControllerRef.current.abort();
@@ -108,18 +129,161 @@ export function useResqDrivingMode(map) {
           if (cameraManagerRef.current && cameraFollowing) {
             cameraManagerRef.current.followVehicle([currentLon, currentLat], lastHeadingRef.current, 0, true);
           }
+
+          setRerouteNotice({
+            active: true,
+            type: "SAFER_FOUND",
+            message: "ROUTE UPDATED",
+            detail: "Navigation resumed on new trajectory.",
+          });
+
+          if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+          noticeTimerRef.current = setTimeout(() => {
+            setRerouteNotice(null);
+            noticeTimerRef.current = null;
+          }, 4500);
         }
       } catch (err) {
-        console.warn("Reroute request failed:", err.message);
+        console.warn("Off-route recalculation failed:", err.message);
       } finally {
         isRerouteInFlightRef.current = false;
         setOffRouteStatus(false);
       }
     },
-    [destination, cameraFollowing, setOffRouteStatus, applyReroute]
+    [destination, cameraFollowing, setOffRouteStatus, setRerouteNotice, applyReroute]
   );
 
-  // 3. Process GPS position fix and update navigation metrics
+  // 3. Dynamic Risk-Aware Reroute Execution
+  const triggerRiskReroute = useCallback(
+    async (reason = "Route risk changed ahead") => {
+      if (!sessionId || isRerouteInFlightRef.current) return;
+
+      const now = Date.now();
+      if (now - lastRerouteTimeRef.current < REROUTE_COOLDOWN_MS) return;
+
+      lastRerouteTimeRef.current = now;
+      isRerouteInFlightRef.current = true;
+
+      setRerouteNotice({
+        active: true,
+        type: "RISK_CHANGED",
+        message: "ROUTE RISK CHANGED",
+        detail: reason || "Hazard detected on remaining route. Finding a safer bypass...",
+      });
+
+      try {
+        const currentCoord = lastKnownCoordRef.current || [
+          Number(origin.lon ?? origin.longitude ?? origin[0]),
+          Number(origin.lat ?? origin.latitude ?? origin[1]),
+        ];
+
+        const rerouteRes = await triggerDynamicReroute({
+          sessionId,
+          currentPosition: currentCoord,
+        });
+
+        if (rerouteRes.success && rerouteRes.newRoute) {
+          applyReroute(rerouteRes.newRoute, rerouteRes.explanation);
+          if (cameraManagerRef.current && cameraFollowing) {
+            cameraManagerRef.current.followVehicle(currentCoord, lastHeadingRef.current, 0, true);
+          }
+
+          setRerouteNotice({
+            active: true,
+            type: "SAFER_FOUND",
+            message: "SAFER ROUTE FOUND",
+            detail: rerouteRes.explanation?.reason || "Safer bypass selected avoiding active hazard.",
+          });
+
+          if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+          noticeTimerRef.current = setTimeout(() => {
+            setRerouteNotice(null);
+            noticeTimerRef.current = null;
+          }, 5000);
+        } else {
+          setRerouteNotice({
+            active: true,
+            type: "RISK_CHANGED",
+            message: "NO SAFE BYPASS FOUND",
+            detail: "All alternatives have elevated risk. Proceed with extreme caution.",
+          });
+        }
+      } catch (err) {
+        console.error("Dynamic risk reroute error:", err.message);
+      } finally {
+        isRerouteInFlightRef.current = false;
+      }
+    },
+    [sessionId, origin, cameraFollowing, setRerouteNotice, applyReroute]
+  );
+
+  // 4. Register Session for Live 500m Grid Risk Monitoring
+  useEffect(() => {
+    if (navigationMode !== "driving" || !sessionId || !routeData?.geometry) {
+      if (monitorTimerRef.current) {
+        clearInterval(monitorTimerRef.current);
+        monitorTimerRef.current = null;
+      }
+      return;
+    }
+
+    const origCoord = origin
+      ? [Number(origin.lon ?? origin.longitude ?? origin[0]), Number(origin.lat ?? origin.latitude ?? origin[1])]
+      : routeData.geometry[0];
+    const destCoord = destination
+      ? [Number(destination.lon ?? destination.longitude ?? destination[0]), Number(destination.lat ?? destination.latitude ?? destination[1])]
+      : routeData.geometry[routeData.geometry.length - 1];
+
+    // Register active route with backend monitor
+    registerRouteMonitor({
+      sessionId,
+      routeId: routeData.routeId || `route_${Date.now()}`,
+      routeGeometry: routeData.geometry,
+      origin: origCoord,
+      destination: destCoord,
+      vehicle: "car",
+    }).then((regRes) => {
+      if (regRes.success && regRes.data?.riskSnapshot) {
+        setRouteRiskMetrics({
+          status: regRes.data.riskSnapshot.routeStatus,
+          meanRisk: regRes.data.riskSnapshot.meanRisk,
+          hazards: regRes.data.hazards,
+        });
+      }
+    });
+
+    // Start background poll to inspect route risk and upcoming hazards
+    monitorTimerRef.current = setInterval(async () => {
+      try {
+        const monStatus = await getRouteMonitorStatus(sessionId);
+        if (monStatus.success && monStatus.data) {
+          const data = monStatus.data;
+          setRouteRiskMetrics({
+            status: data.riskSnapshot?.routeStatus,
+            meanRisk: data.riskSnapshot?.meanRisk,
+            hazards: data.upcomingHazards,
+          });
+
+          // If remaining route becomes blocked or critical, trigger automatic reroute
+          if (data.riskSnapshot?.isBlocked || data.riskSnapshot?.routeStatus === "BLOCKED") {
+            triggerRiskReroute("Critical road or bridge blockage detected ahead.");
+          }
+        }
+      } catch (e) {
+        console.warn("Route monitor poll warning:", e.message);
+      }
+    }, MONITOR_POLL_INTERVAL_MS);
+
+    return () => {
+      if (monitorTimerRef.current) {
+        clearInterval(monitorTimerRef.current);
+        monitorTimerRef.current = null;
+      }
+      cleanupRouteMonitor(sessionId);
+    };
+  }, [navigationMode, sessionId, routeData?.geometry, routeData?.routeId, origin, destination, setRouteRiskMetrics, triggerRiskReroute]);
+
+  // 5. Process GPS position fix and update navigation metrics
   const handleGpsPosition = useCallback(
     (pos) => {
       const { latitude: lat, longitude: lon, accuracy = 20, speed = null, heading: rawHeading = null } = pos.coords;
@@ -127,6 +291,8 @@ export function useResqDrivingMode(map) {
       const instructions = routeData?.instructions || [];
 
       if (geometry.length === 0) return;
+
+      lastKnownCoordRef.current = [lon, lat];
 
       // Calculate speed in km/h with smoothing buffer
       const speedKmh = speed != null && speed >= 0 ? Math.round(speed * 3.6) : 0;
@@ -165,8 +331,14 @@ export function useResqDrivingMode(map) {
       const progress = findNearestRouteProgress(lat, lon, geometry, currentShapeIndex, 15, 60);
       const matchIndex = progress.nearestIndex;
       const crossTrack = progress.crossTrackMeters;
+      const progressFraction = matchIndex / Math.max(1, geometry.length - 1);
 
-      // 4. Arrival Detection
+      // Report progress to backend monitor to trim completed grids
+      if (sessionId) {
+        updateRouteProgress({ sessionId, currentPosition: [lon, lat], progressFraction });
+      }
+
+      // 6. Arrival Detection
       const destCoord = geometry[geometry.length - 1];
       const distToDestMeters = haversineDistanceMeters(lat, lon, destCoord[1], destCoord[0]);
 
@@ -179,11 +351,11 @@ export function useResqDrivingMode(map) {
         return;
       }
 
-      // 5. Off-Route Detection (Sustained cross-track deviation > 35m for 4s)
+      // 7. Off-Route Detection (Sustained cross-track deviation > 35m for 4s)
       if (crossTrack > OFF_ROUTE_DISTANCE_THRESHOLD_METERS && accuracy <= 40) {
         if (!offRouteTimerRef.current) {
           offRouteTimerRef.current = setTimeout(() => {
-            triggerAutoReroute(lat, lon);
+            triggerOffRouteReroute(lat, lon);
             offRouteTimerRef.current = null;
           }, OFF_ROUTE_SUSTAINED_TIME_MS);
         }
@@ -194,13 +366,12 @@ export function useResqDrivingMode(map) {
         }
       }
 
-      // 6. Maneuver Advancement
+      // 8. Maneuver Advancement
       let activeManeuverIdx = currentManeuverIndex;
       const currentManeuver = instructions[activeManeuverIdx];
 
       if (currentManeuver) {
         const turnShapeIdx = currentManeuver.endShapeIndex ?? 0;
-        // Advance maneuver when vehicle passes the turn vertex
         if (matchIndex >= turnShapeIdx && activeManeuverIdx < instructions.length - 1) {
           activeManeuverIdx++;
         }
@@ -213,7 +384,6 @@ export function useResqDrivingMode(map) {
       const distToNextManeuverKm = calculateDistanceToShapeIndexKm(lat, lon, geometry, matchIndex, targetShapeIdx);
       const remainingDistanceKm = calculateRemainingDistanceKm(geometry, matchIndex);
 
-      // Estimate remaining time based on remaining distance
       const avgSpeed = Math.max(speedKmh, 35);
       const remainingDurationSeconds = Math.round((remainingDistanceKm / avgSpeed) * 3600);
 
@@ -241,18 +411,19 @@ export function useResqDrivingMode(map) {
     },
     [
       map,
+      sessionId,
       routeData,
       cameraFollowing,
       currentShapeIndex,
       currentManeuverIndex,
       triggerArrival,
-      triggerAutoReroute,
+      triggerOffRouteReroute,
       updateGpsPosition,
       updateNavProgress,
     ]
   );
 
-  // 7. Start / Stop GPS Geolocation Watcher based on navigation mode
+  // 9. Start / Stop GPS Geolocation Watcher based on navigation mode
   useEffect(() => {
     if (navigationMode !== "driving" || navigationStatus === "arrived") {
       if (watchIdRef.current) {
@@ -309,6 +480,7 @@ export function useResqDrivingMode(map) {
         cameraManagerRef.current.followVehicle([pos.lon, pos.lat], lastHeadingRef.current, 0, false);
       }
     }, [map, setCameraFollowing]),
+    triggerRiskReroute,
   };
 }
 

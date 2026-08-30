@@ -1,4 +1,4 @@
-// Fullscreen turn-by-turn driving navigation overlay and HUD for RESQ
+// Fullscreen turn-by-turn driving navigation overlay and HUD for RESQ with live risk monitoring
 
 import { useMemo } from "react";
 import {
@@ -15,6 +15,8 @@ import {
   List,
   AlertTriangle,
   CheckCircle2,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import { useRouteStore } from "../services/routeStore.js";
 import { formatMetricDistance } from "./navigationMath.js";
@@ -47,6 +49,10 @@ export function ResqNavigationOverlay({ onRecenter }) {
     routeData,
     destination,
     navigationStatus,
+    routeRiskStatus,
+    routeMeanRisk,
+    upcomingHazards,
+    rerouteNotice,
     currentManeuverIndex,
     nextManeuverIndex,
     distanceToNextManeuverKm,
@@ -81,15 +87,43 @@ export function ResqNavigationOverlay({ onRecenter }) {
     if (onRecenter) onRecenter();
   };
 
+  // Determine risk monitor status pill color and text
+  const isHighRisk = routeRiskStatus === "HIGH" || routeRiskStatus === "HIGH_RISK" || routeRiskStatus === "CRITICAL" || routeRiskStatus === "BLOCKED";
+  const isBlocked = routeRiskStatus === "BLOCKED";
+
   return (
     <div className={styles.overlayRoot}>
       {/* 1. TOP MANEUVER BANNER */}
       <div className={styles.topSection}>
+        {/* Dynamic Risk Reroute Alert Banner */}
+        {rerouteNotice?.active && (
+          <div
+            className={
+              rerouteNotice.type === "SAFER_FOUND"
+                ? styles.saferFoundBanner
+                : styles.offRouteBanner
+            }
+          >
+            {rerouteNotice.type === "SAFER_FOUND" ? (
+              <CheckCircle2 size={18} className={styles.alertIcon} />
+            ) : (
+              <AlertTriangle size={18} className={styles.alertIcon} />
+            )}
+            <div className={styles.alertDetails}>
+              <span className={styles.alertTitle}>{rerouteNotice.message}</span>
+              <span className={styles.alertSubtitle}>{rerouteNotice.detail}</span>
+            </div>
+          </div>
+        )}
+
         {/* Off-Route Recalculation Alert */}
-        {(navigationStatus === "off_route" || isRerouting) && (
+        {(navigationStatus === "off_route" || isRerouting) && !rerouteNotice?.active && (
           <div className={styles.offRouteBanner}>
             <AlertTriangle size={18} className={styles.alertIcon} />
-            <span>Off route • Recalculating route from current location...</span>
+            <div className={styles.alertDetails}>
+              <span className={styles.alertTitle}>OFF ROUTE DETECTED</span>
+              <span className={styles.alertSubtitle}>Recalculating route from current position...</span>
+            </div>
           </div>
         )}
 
@@ -136,6 +170,16 @@ export function ResqNavigationOverlay({ onRecenter }) {
             )}
           </div>
         )}
+
+        {/* Upcoming Hazard Corridor Warning Strip */}
+        {upcomingHazards && upcomingHazards.length > 0 && navigationStatus !== "arrived" && (
+          <div className={styles.hazardStrip}>
+            <ShieldAlert size={14} className={styles.hazardIcon} />
+            <span className={styles.hazardText}>
+              {upcomingHazards[0].title || upcomingHazards[0].hazardType || "Hazard"} detected on route ahead
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 2. RECENTER FLOATING ACTION BUTTON */}
@@ -156,6 +200,20 @@ export function ResqNavigationOverlay({ onRecenter }) {
       {/* 3. BOTTOM NAVIGATION HUD */}
       <div className={styles.bottomSection}>
         <div className={styles.hudCard}>
+          {/* Live Risk Status Strip */}
+          <div className={styles.riskStatusStrip}>
+            <div className={styles.monitorBadge}>
+              <span className={isHighRisk ? styles.pulseDotRed : styles.pulseDotGreen} />
+              <span>ROUTE MONITORED</span>
+            </div>
+            <div className={isBlocked ? styles.riskPillBlocked : isHighRisk ? styles.riskPillHigh : styles.riskPillLow}>
+              {isHighRisk ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
+              <span>
+                {isBlocked ? "BLOCKED" : `Risk ${Math.round(routeMeanRisk)} (${routeRiskStatus})`}
+              </span>
+            </div>
+          </div>
+
           <div className={styles.metricsRow}>
             {/* ETA & Duration */}
             <div className={styles.metricGroup}>

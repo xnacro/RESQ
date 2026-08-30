@@ -1,4 +1,4 @@
-// Route Summary & Preview Panel Component for RESQ
+// Route Summary & Preview Panel Component for RESQ with Fast vs Safe Route Comparison
 import {
   ArrowRight,
   Navigation,
@@ -7,6 +7,9 @@ import {
   X,
   Zap,
   Shield,
+  ShieldAlert,
+  ShieldCheck,
+  AlertTriangle,
   ArrowUp,
   ArrowRight as TurnRight,
   ArrowLeft as TurnLeft,
@@ -16,6 +19,7 @@ import {
   CornerUpLeft,
 } from 'lucide-react'
 import { useMemo } from 'react'
+import { useRouteStore } from '../services/routeStore.js'
 import styles from './RouteSummaryPanel.module.css'
 
 // Helper to format maneuver distance in meters or kilometers
@@ -49,6 +53,24 @@ function getManeuverIconComponent(iconName) {
   }
 }
 
+// Helper to format risk status badge
+function getRiskBadge(status, score) {
+  const numScore = Math.round(Number(score) || 0)
+  if (status === 'BLOCKED') {
+    return { label: 'CRITICAL (BLOCKED)', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: ShieldAlert }
+  }
+  if (status === 'CRITICAL' || numScore >= 70) {
+    return { label: `CRITICAL (${numScore})`, color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: ShieldAlert }
+  }
+  if (status === 'HIGH' || status === 'HIGH_RISK' || numScore >= 45) {
+    return { label: `HIGH RISK (${numScore})`, color: '#ea580c', bg: '#fff7ed', border: '#ffedd5', icon: AlertTriangle }
+  }
+  if (status === 'CAUTION' || status === 'MODERATE' || numScore >= 25) {
+    return { label: `MODERATE (${numScore})`, color: '#d97706', bg: '#fffbeb', border: '#fef3c7', icon: Shield }
+  }
+  return { label: `LOW RISK (${numScore})`, color: '#16a34a', bg: '#f0fdf4', border: '#dcfce7', icon: ShieldCheck }
+}
+
 export function RouteSummaryPanel({
   routeData,
   origin,
@@ -56,11 +78,20 @@ export function RouteSummaryPanel({
   onStartNavigation,
   onClearRoute,
 }) {
+  const { activeRouteMode, calculateRoutePlan, isRouting } = useRouteStore()
+
   const originName = origin?.displayName || origin?.name || 'Starting Point'
   const destName = destination?.displayName || destination?.name || 'Destination'
   const distanceKm = routeData?.distanceKm ?? 0
   const durationMin = routeData?.durationMinutes ?? Math.round((routeData?.durationSeconds || 0) / 60)
   const instructions = routeData?.instructions || []
+  const riskScore = routeData?.riskScore ?? routeData?.riskSnapshot?.meanRisk ?? 0
+  const riskStatus = routeData?.riskStatus ?? routeData?.riskSnapshot?.routeStatus ?? 'SAFE'
+  const isBlocked = routeData?.isBlocked ?? routeData?.riskSnapshot?.isBlocked ?? false
+  const explanation = routeData?.explanation
+
+  const riskBadge = getRiskBadge(isBlocked ? 'BLOCKED' : riskStatus, riskScore)
+  const RiskIcon = riskBadge.icon
 
   // Estimate arrival time
   const etaFormatted = useMemo(() => {
@@ -69,6 +100,12 @@ export function RouteSummaryPanel({
     const arrivalTime = new Date(now.getTime() + totalSec * 1000)
     return arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }, [routeData?.durationSeconds])
+
+  // Handle switching between Fast and Safe Route modes
+  const handleSelectMode = (mode) => {
+    if (isRouting || activeRouteMode === mode) return
+    calculateRoutePlan({ mode })
+  }
 
   if (!routeData) return null
 
@@ -107,24 +144,61 @@ export function RouteSummaryPanel({
 
       {/* Route Mode Switcher */}
       <div className={styles.modeSwitcher}>
-        <div className={`${styles.modeCard} ${styles.modeCardActive}`}>
+        <button
+          type="button"
+          className={`${styles.modeCard} ${activeRouteMode === 'fastest' || activeRouteMode === 'fast' ? styles.modeCardActive : ''}`}
+          onClick={() => handleSelectMode('fastest')}
+          disabled={isRouting}
+        >
           <div className={styles.modeCardHeader}>
             <Zap size={14} className={styles.fastIcon} />
-            <span className={styles.modeCardTitle}>Fast Route (Active)</span>
+            <span className={styles.modeCardTitle}>Fast Route</span>
           </div>
           <div className={styles.modeCardStats}>
             <span className={styles.modeEta}>{durationMin} min</span>
             <span className={styles.modeDist}>• {distanceKm} km</span>
           </div>
-        </div>
+        </button>
 
-        <div className={`${styles.modeCard} ${styles.modeCardDisabled}`} title="Risk-Aware Safe Routing will be active in the next phase">
+        <button
+          type="button"
+          className={`${styles.modeCard} ${activeRouteMode === 'safe' ? styles.modeCardActive : ''}`}
+          onClick={() => handleSelectMode('safe')}
+          disabled={isRouting}
+        >
           <div className={styles.modeCardHeader}>
             <Shield size={14} className={styles.safeIcon} />
             <span className={styles.modeCardTitle}>Safe Route</span>
           </div>
-          <span className={styles.comingSoonTag}>Risk Engine Coming Next</span>
+          <div className={styles.modeCardStats}>
+            <span className={styles.modeEta}>{durationMin} min</span>
+            <span className={styles.modeDist}>• {distanceKm} km</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Risk Profile & Safety Reason Banner */}
+      <div className={styles.riskProfileCard}>
+        <div className={styles.riskHeader}>
+          <span className={styles.riskLabel}>Corridor Risk Score</span>
+          <div
+            className={styles.riskBadge}
+            style={{
+              color: riskBadge.color,
+              background: riskBadge.bg,
+              borderColor: riskBadge.border,
+            }}
+          >
+            <RiskIcon size={13} />
+            <span>{riskBadge.label}</span>
+          </div>
         </div>
+
+        {explanation?.reason && (
+          <div className={styles.explanationBox}>
+            <p className={styles.explanationText}>{explanation.reason}</p>
+          </div>
+        )}
       </div>
 
       {/* Route Summary Overview */}
@@ -160,9 +234,7 @@ export function RouteSummaryPanel({
                   <p className={styles.stepInstruction}>{step.instruction}</p>
                   <div className={styles.stepMeta}>
                     <span className={styles.stepDistance}>{formatDistance(step.distanceKm)}</span>
-                    {step.streetNames && step.streetNames.length > 0 && (
-                      <span className={styles.stepStreet}>• {step.streetNames.join(', ')}</span>
-                    )}
+                    {step.streetName && <span className={styles.stepStreet}>• {step.streetName}</span>}
                   </div>
                 </div>
               </div>
@@ -178,7 +250,7 @@ export function RouteSummaryPanel({
           className={styles.startNavBtn}
           onClick={onStartNavigation}
         >
-          <Navigation size={16} />
+          <Navigation size={18} />
           <span>Start Navigation</span>
         </button>
       </div>

@@ -7,11 +7,18 @@ const SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Initial state snapshot
 const INITIAL_STATE = {
+  sessionId: null,
   origin: null,
   destination: null,
   routeData: null,
   alternatives: [],
   activeRouteMode: "fastest",
+  routeExplanation: null,
+  routeRiskStatus: "SAFE",
+  routeMeanRisk: 0,
+  upcomingHazards: [],
+  rerouteNotice: null,
+  isMonitoring: false,
   vehicle: "car",
   isRouting: false,
   routingError: null,
@@ -65,9 +72,12 @@ export function persistNavigationSession() {
   try {
     const payload = {
       timestamp: Date.now(),
+      sessionId: state.sessionId,
       origin: state.origin,
       destination: state.destination,
       routeData: state.routeData,
+      activeRouteMode: state.activeRouteMode,
+      routeExplanation: state.routeExplanation,
       currentManeuverIndex: state.currentManeuverIndex,
       currentShapeIndex: state.currentShapeIndex,
       navigationMode: state.navigationMode,
@@ -100,9 +110,12 @@ export function hydrateNavigationSession() {
 
     state = {
       ...state,
+      sessionId: data.sessionId || `resq_nav_${Date.now()}`,
       origin: data.origin || null,
       destination: data.destination,
       routeData: data.routeData,
+      activeRouteMode: data.activeRouteMode || "fastest",
+      routeExplanation: data.routeExplanation || null,
       currentManeuverIndex: data.currentManeuverIndex || 0,
       currentShapeIndex: data.currentShapeIndex || 0,
       navigationMode: data.navigationMode || "preview",
@@ -110,6 +123,7 @@ export function hydrateNavigationSession() {
       remainingDistanceKm: data.routeData.distanceKm || 0,
       remainingDurationSeconds: data.routeData.durationSeconds || 0,
       cameraFollowing: true,
+      isMonitoring: data.navigationMode === "driving",
     };
     emitChange();
     return true;
@@ -136,7 +150,7 @@ export function setDestination(dest) {
   emitChange();
 }
 
-// Sets the current origin location
+// Sets the current origin starting point
 export function setOrigin(orig) {
   state = {
     ...state,
@@ -164,7 +178,7 @@ export function closeSourceModal() {
   emitChange();
 }
 
-// Calculates normal Valhalla route between origin and destination
+// Calculates Valhalla or Safe route between origin and destination
 export async function calculateRoutePlan({
   origin = state.origin,
   destination = state.destination,
@@ -209,17 +223,19 @@ export async function calculateRoutePlan({
       Number(destination.lat ?? destination.latitude ?? destination[1]),
     ];
 
+    const targetMode = mode === "safe" ? "safe" : "fastest";
     const res = await getRoute({
       origin: originCoord,
       destination: destCoord,
-      mode: "fastest",
+      mode: targetMode,
       vehicle: "car",
-      alternatives: 2,
+      alternatives: 3,
     });
 
     if (requestId !== latestRequestId) return null;
 
-    if (!res.success || !res.route) {
+    const chosenRoute = res.selectedRoute || res.route;
+    if (!res.success || !chosenRoute) {
       state = {
         ...state,
         isRouting: false,
@@ -229,20 +245,25 @@ export async function calculateRoutePlan({
       return null;
     }
 
+    const riskSnapshot = chosenRoute.riskSnapshot;
     state = {
       ...state,
-      routeData: res.route,
+      routeData: chosenRoute,
       alternatives: res.alternatives || [],
+      routeExplanation: res.explanation || chosenRoute.explanation || null,
+      routeRiskStatus: riskSnapshot?.routeStatus || chosenRoute.riskStatus || "SAFE",
+      routeMeanRisk: riskSnapshot?.meanRisk ?? chosenRoute.riskScore ?? 0,
+      upcomingHazards: chosenRoute.hazards || [],
       isRouting: false,
       routingError: null,
       navigationMode: "preview",
-      remainingDistanceKm: res.route.distanceKm || 0,
-      remainingDurationSeconds: res.route.durationSeconds || 0,
+      remainingDistanceKm: chosenRoute.distanceKm || 0,
+      remainingDurationSeconds: chosenRoute.durationSeconds || 0,
       currentManeuverIndex: 0,
       nextManeuverIndex: 1,
     };
     emitChange();
-    return res.route;
+    return chosenRoute;
   } catch (err) {
     if (requestId !== latestRequestId) return null;
     state = {
@@ -264,11 +285,15 @@ export function startDriving() {
   const instructions = state.routeData.instructions || [];
   const firstManeuver = instructions[0];
   const initialDist = firstManeuver?.distanceKm ?? 0;
+  const newSessionId = `resq_nav_${Date.now()}`;
 
   state = {
     ...state,
+    sessionId: newSessionId,
     navigationMode: "driving",
     navigationStatus: "navigating",
+    isMonitoring: true,
+    rerouteNotice: null,
     currentManeuverIndex: 0,
     nextManeuverIndex: instructions.length > 1 ? 1 : 0,
     currentShapeIndex: 0,
@@ -287,8 +312,11 @@ export function stopDriving() {
   clearPersistedSession();
   state = {
     ...state,
+    sessionId: null,
     navigationMode: "preview",
     navigationStatus: "idle",
+    isMonitoring: false,
+    rerouteNotice: null,
     cameraFollowing: true,
     isStepsDrawerOpen: false,
   };
@@ -363,16 +391,16 @@ export function recenterCamera() {
   emitChange();
 }
 
-// Toggles turn-by-turn steps drawer
-export function toggleStepsDrawer() {
+// Toggles maneuver steps drawer open/closed
+export function toggleStepsDrawer(forceOpen) {
   state = {
     ...state,
-    isStepsDrawerOpen: !state.isStepsDrawerOpen,
+    isStepsDrawerOpen: forceOpen !== undefined ? forceOpen : !state.isStepsDrawerOpen,
   };
   emitChange();
 }
 
-// Marks off-route status and begins recalculating state
+// Sets off-route recalculated status
 export function setOffRouteStatus(isOffRoute) {
   state = {
     ...state,
@@ -382,17 +410,48 @@ export function setOffRouteStatus(isOffRoute) {
   emitChange();
 }
 
-// Replaces active route with newly calculated reroute trajectory
-export function applyReroute(newRoute) {
+// Sets dynamic risk reroute notice banner
+export function setRerouteNotice(notice) {
+  state = {
+    ...state,
+    rerouteNotice: notice,
+  };
+  emitChange();
+}
+
+// Updates route risk status metrics from live monitor
+export function setRouteRiskMetrics({ status, meanRisk, hazards }) {
+  state = {
+    ...state,
+    routeRiskStatus: status || state.routeRiskStatus,
+    routeMeanRisk: meanRisk !== undefined ? meanRisk : state.routeMeanRisk,
+    upcomingHazards: hazards || state.upcomingHazards,
+  };
+  emitChange();
+}
+
+// Applies newly calculated route following dynamic risk or off-route reroute
+export function applyReroute(newRoute, explanation = null) {
   if (!newRoute) return;
+
+  const instructions = newRoute.instructions || [];
+  const firstManeuver = instructions[0];
+  const initialDist = firstManeuver?.distanceKm ?? 0;
+  const riskSnapshot = newRoute.riskSnapshot;
+
   state = {
     ...state,
     routeData: newRoute,
+    routeExplanation: explanation || newRoute.explanation || state.routeExplanation,
+    routeRiskStatus: riskSnapshot?.routeStatus || newRoute.riskStatus || state.routeRiskStatus,
+    routeMeanRisk: riskSnapshot?.meanRisk ?? newRoute.riskScore ?? state.routeMeanRisk,
+    upcomingHazards: newRoute.hazards || [],
     navigationStatus: "navigating",
     isRerouting: false,
     currentManeuverIndex: 0,
-    nextManeuverIndex: (newRoute.instructions?.length || 0) > 1 ? 1 : 0,
+    nextManeuverIndex: instructions.length > 1 ? 1 : 0,
     currentShapeIndex: 0,
+    distanceToNextManeuverKm: initialDist,
     remainingDistanceKm: newRoute.distanceKm || 0,
     remainingDurationSeconds: newRoute.durationSeconds || 0,
   };
@@ -400,40 +459,32 @@ export function applyReroute(newRoute) {
   emitChange();
 }
 
-// Marks destination arrival
+// Triggers destination arrival completion
 export function triggerArrival() {
   state = {
     ...state,
     navigationStatus: "arrived",
     remainingDistanceKm: 0,
     remainingDurationSeconds: 0,
-    distanceToNextManeuverKm: 0,
   };
   clearPersistedSession();
   emitChange();
 }
 
-// Sets active navigation mode
-export function setNavigationMode(mode) {
-  state = {
-    ...state,
-    navigationMode: mode,
-  };
-  emitChange();
-}
-
-// React hook helper for consuming route store
+// React custom hook subscribing to route store state snapshot
 import { useState, useEffect } from "react";
 
 export function useRouteStore() {
-  const [storeState, setStoreState] = useState(getRouteState);
+  const [snapshot, setSnapshot] = useState(getRouteState);
 
   useEffect(() => {
-    return subscribeRouteStore(setStoreState);
+    return subscribeRouteStore((next) => {
+      setSnapshot(next);
+    });
   }, []);
 
   return {
-    ...storeState,
+    ...snapshot,
     setDestination,
     setOrigin,
     openSourceModal,
@@ -448,35 +499,11 @@ export function useRouteStore() {
     recenterCamera,
     toggleStepsDrawer,
     setOffRouteStatus,
+    setRerouteNotice,
+    setRouteRiskMetrics,
     applyReroute,
     triggerArrival,
-    setNavigationMode,
-    hydrateNavigationSession,
   };
 }
 
-export default {
-  subscribeRouteStore,
-  getRouteState,
-  persistNavigationSession,
-  hydrateNavigationSession,
-  clearPersistedSession,
-  setDestination,
-  setOrigin,
-  openSourceModal,
-  closeSourceModal,
-  calculateRoutePlan,
-  startDriving,
-  stopDriving,
-  clearRoute,
-  updateGpsPosition,
-  updateNavProgress,
-  setCameraFollowing,
-  recenterCamera,
-  toggleStepsDrawer,
-  setOffRouteStatus,
-  applyReroute,
-  triggerArrival,
-  setNavigationMode,
-  useRouteStore,
-};
+export default useRouteStore;
