@@ -563,12 +563,35 @@ export function MapSurface({
     }
   }, []) // Empty dependency array ensures MapLibre is never torn down and recreated
 
+  // Track current base style to avoid unnecessary style reloads
+  const currentBaseStyleRef = useRef('vector')
+
   // 2. Handle Layer Style & 3D/Terrain Mode Changes dynamically
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
 
-    // Special handling for 3D and Terrain modes
+    const isRasterMode = mode === MAP_MODES.SATELLITE || mode === MAP_MODES.HYBRID
+    const targetBaseStyle = isRasterMode ? mode : 'vector'
+
+    if (targetBaseStyle !== currentBaseStyleRef.current) {
+      currentBaseStyleRef.current = targetBaseStyle
+      const nextStyle = getMapStyle(mode)
+      map.setStyle(nextStyle)
+
+      map.once('style.load', () => {
+        map.resize()
+        addCustomLayers(map)
+        refreshViewportGrids()
+        refreshActiveEvents()
+        if (selectedLocationRef.current) {
+          updateLocationMarker(selectedLocationRef.current, map)
+        }
+      })
+      return
+    }
+
+    // Dynamic switching between Vector Modes (NORMAL, LIBERTY, 3D, TERRAIN, RESQ)
     if (mode === MAP_MODES.D3) {
       if (map.isStyleLoaded()) {
         if (map.getLayer('resq-3d-buildings')) {
@@ -578,11 +601,11 @@ export function MapSurface({
           map.setLayoutProperty('resq-building-fill', 'visibility', 'none')
         }
         if (map.getLayer('resq-hillshade')) {
-          map.setLayoutProperty('resq-hillshade', 'visibility', 'none')
+          map.setLayoutProperty('resq-hillshade', 'visibility', 'visible')
         }
       }
       try {
-        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.2 })
+        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.4 })
       } catch {
         // DEM terrain fallback
       }
@@ -611,7 +634,7 @@ export function MapSurface({
       return
     }
 
-    // Return from 3D/Terrain to 2D
+    // Reset 2D vector modes (NORMAL, LIBERTY, RESQ)
     try {
       map.setTerrain(null)
     } catch {
@@ -629,20 +652,6 @@ export function MapSurface({
       }
     }
     map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
-
-    // If switching raster or distinct base style (e.g. Liberty or Satellite)
-    const nextStyle = getMapStyle(mode)
-    map.setStyle(nextStyle)
-
-    map.once('style.load', () => {
-      map.resize()
-      addCustomLayers(map)
-      refreshViewportGrids()
-      refreshActiveEvents()
-      if (selectedLocationRef.current) {
-        updateLocationMarker(selectedLocationRef.current, map)
-      }
-    })
   }, [mode, mapReady, addCustomLayers, refreshViewportGrids, refreshActiveEvents, updateLocationMarker])
 
   // 3. Render Selected Grid Cell Highlight Polygon

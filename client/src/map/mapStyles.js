@@ -11,14 +11,7 @@ export const MAP_MODES = {
   RESQ: 'resq',
 }
 
-// Fallback OpenFreeMap vector tile style endpoints
-export const OPEN_FREE_MAP_STYLES = Object.freeze({
-  BRIGHT: 'https://tiles.openfreemap.org/styles/bright',
-  LIBERTY: 'https://tiles.openfreemap.org/styles/liberty',
-  POSITRON: 'https://tiles.openfreemap.org/styles/positron',
-})
-
-// Standalone Satellite Style
+// Standalone Satellite Style (Esri World Imagery)
 export const STANDALONE_SATELLITE_STYLE = Object.freeze({
   version: 8,
   sources: {
@@ -72,24 +65,22 @@ export const STANDALONE_HYBRID_STYLE = Object.freeze({
 export function getMapStyle(mode = MAP_MODES.NORMAL, theme = 'light') {
   switch (mode) {
     case MAP_MODES.NORMAL:
+    case MAP_MODES.LIBERTY:
     case MAP_MODES.RESQ:
     case MAP_MODES.D3:
     case MAP_MODES.TERRAIN:
-      return buildResqVectorStyle({ theme })
-    case MAP_MODES.LIBERTY:
-      return OPEN_FREE_MAP_STYLES.LIBERTY
+      return buildResqVectorStyle({ theme, mode })
     case MAP_MODES.SATELLITE:
       return STANDALONE_SATELLITE_STYLE
     case MAP_MODES.HYBRID:
       return STANDALONE_HYBRID_STYLE
     default:
-      return buildResqVectorStyle({ theme })
+      return buildResqVectorStyle({ theme, mode })
   }
 }
 
 export default {
   MAP_MODES,
-  OPEN_FREE_MAP_STYLES,
   STANDALONE_SATELLITE_STYLE,
   STANDALONE_HYBRID_STYLE,
   getMapStyle,

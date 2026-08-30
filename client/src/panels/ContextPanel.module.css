@@ -138,10 +138,33 @@
 }
 
 .directionsBtn {
-  width: 100%;
-  font-weight: 700;
-  height: 38px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  width: 100% !important;
+  font-weight: 700 !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+  font-size: 13.5px !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.28), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+}
+
+.directionsBtn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.38), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.directionsBtn:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
 }
 
 .tabsRow {

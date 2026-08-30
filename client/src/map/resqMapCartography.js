@@ -1,5 +1,5 @@
 // Custom RESQ Cartographic Map Style Generator
-// Crafts a cool blue-white, technical, and operational vector basemap with crisp typography, prominent rivers, and controlled label density
+// Crafts a cool blue-white, technical, and operational vector basemap with rich POIs, 3D extrusions, and hillshading
 
 import { RESQ_PALETTE } from './resqCartographyTokens.js'
 
@@ -12,8 +12,11 @@ const SPRITE_URL = 'https://tiles.openfreemap.org/sprites/ofm_f384/ofm'
 // High-contrast place and POI label expression (supports English + regional OSM names)
 const NAME_EXPRESSION = ['coalesce', ['get', 'name:en'], ['get', 'name'], ['get', 'name:latin']]
 
-export function buildResqVectorStyle({ theme = 'light' } = {}) {
+export function buildResqVectorStyle({ theme = 'light', mode = 'normal' } = {}) {
   const isDark = theme === 'dark'
+  const is3D = mode === '3d'
+  const isTerrain = mode === 'terrain'
+
   const p = isDark
     ? {
         bg: RESQ_PALETTE.DARK_LAND,
@@ -63,18 +66,24 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
     version: 8,
     name: `RESQ Cool Premium Cartography (${isDark ? 'Dark' : 'Light'})`,
     metadata: {
-      'resq:cartography_version': '5.0.0',
+      'resq:cartography_version': '5.1.0',
     },
     sources: {
       [VECTOR_SOURCE_ID]: {
         type: 'vector',
         url: VECTOR_SOURCE_URL,
       },
+      'resq-terrain-dem': {
+        type: 'raster-dem',
+        tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        maxzoom: 14,
+      },
     },
     glyphs: GLYPHS_URL,
     sprite: SPRITE_URL,
     layers: [
-      // 1. Background Canvas (Cool blue-white technical canvas, 0% cream/beige)
+      // 1. Background Canvas (Cool blue-white technical canvas)
       {
         id: 'resq-background',
         type: 'background',
@@ -83,7 +92,23 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 2. Natural Landcover Areas (Subtle cool blue-green)
+      // 2. Hillshade Layer for 3D Terrain relief
+      {
+        id: 'resq-hillshade',
+        type: 'hillshade',
+        source: 'resq-terrain-dem',
+        layout: {
+          visibility: isTerrain || is3D ? 'visible' : 'none',
+        },
+        paint: {
+          'hillshade-exaggeration': 0.85,
+          'hillshade-shadow-color': isDark ? '#0f172a' : '#475569',
+          'hillshade-highlight-color': '#ffffff',
+          'hillshade-accent-color': '#38bdf8',
+        },
+      },
+
+      // 3. Natural Landcover Areas
       {
         id: 'resq-landcover-glacier',
         type: 'fill',
@@ -118,7 +143,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 3. Landuse (Parks, Soft Cool Blue-Gray Urban & Residential Zones)
+      // 4. Landuse (Parks, Urban, Residential, Commercial)
       {
         id: 'resq-landuse-park',
         type: 'fill',
@@ -163,7 +188,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 4. Water Polygons & Waterways (Clear modern blue for Brahmaputra & Barak flood intelligence)
+      // 5. Water Polygons & Waterways
       {
         id: 'resq-water-fill',
         type: 'fill',
@@ -209,7 +234,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 5. Road Tunnels
+      // 6. Road Tunnels
       {
         id: 'resq-tunnel-casing',
         type: 'line',
@@ -223,14 +248,14 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 6. Road Network Hierarchy (Cool slate casings with bright cool centers for depth)
+      // 7. Road Network Hierarchy
       {
         id: 'resq-road-path',
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['path', 'track', 'pedestrian', 'footway'], true, false],
-        minzoom: 13.5,
+        minzoom: 13,
         paint: {
           'line-color': isDark ? '#334155' : '#94a3b8',
           'line-dasharray': [2, 2],
@@ -243,12 +268,12 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['minor', 'residential', 'service'], true, false],
-        minzoom: 12.5,
+        minzoom: 11.5,
         paint: {
           'line-color': isDark ? '#1e293b' : '#cbd5e1',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            12.5, 1.4,
+            11.5, 1.2,
             16, 3.8,
           ],
         },
@@ -259,12 +284,12 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['minor', 'residential', 'service'], true, false],
-        minzoom: 12.5,
+        minzoom: 11.5,
         paint: {
           'line-color': p.roadFill,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            12.5, 0.7,
+            11.5, 0.6,
             16, 2.4,
           ],
         },
@@ -275,12 +300,12 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
-        minzoom: 8.5,
+        minzoom: 8,
         paint: {
           'line-color': isDark ? '#334155' : '#94a3b8',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            8.5, 1.8,
+            8, 1.8,
             16, 6.0,
           ],
         },
@@ -291,12 +316,12 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
-        minzoom: 8.5,
+        minzoom: 8,
         paint: {
           'line-color': p.roadFill,
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            8.5, 1.1,
+            8, 1.1,
             16, 4.5,
           ],
         },
@@ -307,7 +332,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['primary', 'trunk'], true, false],
-        minzoom: 5,
+        minzoom: 4.5,
         paint: {
           'line-color': isDark ? '#475569' : '#64748b',
           'line-width': [
@@ -324,7 +349,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation',
         filter: ['match', ['get', 'class'], ['primary', 'trunk'], true, false],
-        minzoom: 5,
+        minzoom: 4.5,
         paint: {
           'line-color': p.roadFill,
           'line-width': [
@@ -370,28 +395,78 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 7. Subtle 2D Building Footprints (Cool gray-blue, visible at zoom 13.5+)
+      // 8. 2D Building Footprints (Visible at zoom 13+)
       {
         id: 'resq-building-fill',
         type: 'fill',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'building',
-        minzoom: 13.5,
+        minzoom: 13,
+        layout: {
+          visibility: is3D ? 'none' : 'visible',
+        },
         paint: {
           'fill-color': p.building,
           'fill-outline-color': p.buildingStroke,
-          'fill-opacity': 0.85,
+          'fill-opacity': 0.88,
         },
       },
 
-      // 8. Administrative Boundaries (State & District)
+      // 9. True 3D Building Extrusions with Elevation and Heights
+      {
+        id: 'resq-3d-buildings',
+        type: 'fill-extrusion',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'building',
+        minzoom: 13,
+        layout: {
+          visibility: is3D ? 'visible' : 'none',
+        },
+        paint: {
+          'fill-extrusion-color': [
+            'interpolate',
+            ['linear'],
+            ['coalesce', ['get', 'render_height'], ['get', 'height'], 12],
+            0,
+            isDark ? '#1e293b' : '#e2e8f0',
+            15,
+            isDark ? '#334155' : '#cbd5e1',
+            40,
+            isDark ? '#475569' : '#94a3b8',
+            100,
+            isDark ? '#64748b' : '#64748b',
+          ],
+          'fill-extrusion-height': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            13,
+            0,
+            13.8,
+            ['coalesce', ['get', 'render_height'], ['get', 'height'], ['*', ['coalesce', ['get', 'levels'], 2], 3.5], 14],
+          ],
+          'fill-extrusion-base': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            13,
+            0,
+            13.8,
+            ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'], 0],
+          ],
+          'fill-extrusion-opacity': 0.92,
+          'fill-extrusion-vertical-gradient': true,
+        },
+      },
+
+      // 10. Administrative Boundaries (State & District)
       {
         id: 'resq-boundary-district',
         type: 'line',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'boundary',
         filter: ['>=', ['get', 'admin_level'], 4],
-        minzoom: 7.5,
+        minzoom: 7,
         paint: {
           'line-color': isDark ? '#475569' : '#94a3b8',
           'line-width': 1.0,
@@ -411,7 +486,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 9. Water Labels (Clear blue, italic)
+      // 11. Water Labels (Italic blue)
       {
         id: 'resq-label-water',
         type: 'symbol',
@@ -431,20 +506,20 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 10. Road Hierarchy Labels (Major highways only)
+      // 12. Major Road Labels
       {
         id: 'resq-label-road-major',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'transportation_name',
         filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
-        minzoom: 11,
+        minzoom: 10.5,
         layout: {
           'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Regular'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
-            11, 9.5,
+            10.5, 9.5,
             15, 12,
           ],
           'symbol-placement': 'line',
@@ -456,135 +531,183 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         },
       },
 
-      // 11. Points of Interest (POIs) — Strict zoom-based filtering to eliminate clutter
-      // Emergency & Medical Infrastructure (Hospitals, Police, Fire, Doctors)
+      // 13. Rich Points of Interest (POIs) with High Visual Clarity
+      // A. Universities, Educational Campuses, Institutes (e.g. IIT Guwahati) & Major Landmarks
       {
-        id: 'resq-poi-emergency',
+        id: 'resq-poi-education-landmark',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'poi',
-        filter: ['match', ['get', 'class'], ['hospital', 'police', 'fire_station', 'doctor', 'pharmacy', 'emergency'], true, false],
-        minzoom: 12,
+        filter: [
+          'match',
+          ['get', 'class'],
+          ['college', 'university', 'school', 'kindergarten', 'library', 'monument', 'attraction', 'museum', 'townhall', 'courthouse'],
+          true,
+          false,
+        ],
+        minzoom: 10,
         layout: {
           'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Bold'],
-          'text-size': 11,
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            10, 10.5,
+            14, 12.5,
+            16, 14,
+          ],
           'text-anchor': 'top',
           'text-offset': [0, 0.4],
+          'text-max-width': 9,
         },
         paint: {
-          'text-color': RESQ_PALETTE.POI_HOSPITAL,
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2.0,
+          'text-color': isDark ? '#93c5fd' : '#1e3a8a',
+          'text-halo-color': isDark ? '#0f172a' : '#ffffff',
+          'text-halo-width': 2.4,
         },
       },
-      // Transit Hubs (Airports, Railway, Major Bus Hubs)
+
+      // B. Emergency & Medical Infrastructure (Hospitals, Police, Fire, Doctors)
+      {
+        id: 'resq-poi-emergency-medical',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'poi',
+        filter: [
+          'match',
+          ['get', 'class'],
+          ['hospital', 'clinic', 'doctor', 'pharmacy', 'police', 'fire_station', 'emergency'],
+          true,
+          false,
+        ],
+        minzoom: 9.5,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Bold'],
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            9.5, 10.5,
+            14, 12.5,
+            16, 13.5,
+          ],
+          'text-anchor': 'top',
+          'text-offset': [0, 0.4],
+          'text-max-width': 8,
+        },
+        paint: {
+          'text-color': '#dc2626',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2.5,
+        },
+      },
+
+      // C. Transit Hubs (Railway stations, Bus terminals, Airports, Ferry ghats)
       {
         id: 'resq-poi-transit',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'poi',
-        filter: ['match', ['get', 'class'], ['railway', 'bus', 'ferry', 'airport'], true, false],
-        minzoom: 11,
+        filter: [
+          'match',
+          ['get', 'class'],
+          ['railway', 'station', 'bus', 'ferry', 'airport', 'aerodrome', 'helipad'],
+          true,
+          false,
+        ],
+        minzoom: 9,
         layout: {
           'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Bold'],
-          'text-size': 11,
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            9, 10.5,
+            13, 12,
+            16, 13.5,
+          ],
           'text-anchor': 'top',
           'text-offset': [0, 0.4],
+          'text-max-width': 8,
         },
         paint: {
-          'text-color': RESQ_PALETTE.POI_TRANSIT,
+          'text-color': '#0284c7',
           'text-halo-color': '#ffffff',
-          'text-halo-width': 2.0,
-        },
-      },
-      // Regional Airports
-      {
-        id: 'resq-poi-airport',
-        type: 'symbol',
-        source: VECTOR_SOURCE_ID,
-        'source-layer': 'aerodrome_label',
-        minzoom: 8,
-        layout: {
-          'text-field': NAME_EXPRESSION,
-          'text-font': ['Noto Sans Bold'],
-          'text-size': 11.5,
-          'text-anchor': 'top',
-          'text-offset': [0, 0.4],
-        },
-        paint: {
-          'text-color': RESQ_PALETTE.POI_AIRPORT,
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2.0,
-        },
-      },
-      // Civic & Educational (Universities, Colleges, Town halls - visible only at high zoom 13.5+)
-      {
-        id: 'resq-poi-civic',
-        type: 'symbol',
-        source: VECTOR_SOURCE_ID,
-        'source-layer': 'poi',
-        filter: ['match', ['get', 'class'], ['college', 'university', 'townhall', 'courthouse', 'bank'], true, false],
-        minzoom: 14,
-        layout: {
-          'text-field': NAME_EXPRESSION,
-          'text-font': ['Noto Sans Regular'],
-          'text-size': 10,
-          'text-anchor': 'top',
-          'text-offset': [0, 0.3],
-        },
-        paint: {
-          'text-color': RESQ_PALETTE.POI_CIVIC,
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.6,
+          'text-halo-width': 2.4,
         },
       },
 
-      // 12. Place Labels (Towns, Localities, Cities with strict zoom hierarchy)
-      // Suburbs & Neighborhoods (Zoom 12.5+)
+      // D. Commercial, Banking & Civic Amenities
+      {
+        id: 'resq-poi-commercial-civic',
+        type: 'symbol',
+        source: VECTOR_SOURCE_ID,
+        'source-layer': 'poi',
+        filter: [
+          'match',
+          ['get', 'class'],
+          ['bank', 'atm', 'fuel', 'post', 'supermarket', 'marketplace', 'hotel', 'place_of_worship', 'park', 'sports'],
+          true,
+          false,
+        ],
+        minzoom: 11.5,
+        layout: {
+          'text-field': NAME_EXPRESSION,
+          'text-font': ['Noto Sans Regular'],
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            11.5, 9.5,
+            15, 11.5,
+          ],
+          'text-anchor': 'top',
+          'text-offset': [0, 0.35],
+          'text-max-width': 8,
+        },
+        paint: {
+          'text-color': isDark ? '#cbd5e1' : '#334155',
+          'text-halo-color': isDark ? '#0f172a' : '#ffffff',
+          'text-halo-width': 2.0,
+        },
+      },
+
+      // 14. Place Labels (Towns, Localities, Suburbs, Cities)
       {
         id: 'resq-label-place-suburb',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
         filter: ['match', ['get', 'class'], ['neighbourhood', 'suburb', 'village'], true, false],
-        minzoom: 12.5,
+        minzoom: 11.5,
         layout: {
           'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Regular'],
-          'text-size': 11,
+          'text-size': 11.5,
         },
         paint: {
           'text-color': p.labelSubtle,
           'text-halo-color': p.labelHalo,
-          'text-halo-width': 1.6,
+          'text-halo-width': 1.8,
         },
       },
-      // Towns & District Headquarters (Zoom 8+)
       {
         id: 'resq-label-place-town',
         type: 'symbol',
         source: VECTOR_SOURCE_ID,
         'source-layer': 'place',
         filter: ['match', ['get', 'class'], ['town', 'district'], true, false],
-        minzoom: 8,
+        minzoom: 7.5,
         layout: {
           'text-field': NAME_EXPRESSION,
           'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
-            8, 11,
+            7.5, 11,
             13, 14,
           ],
         },
         paint: {
           'text-color': p.labelMuted,
           'text-halo-color': p.labelHalo,
-          'text-halo-width': 2.0,
+          'text-halo-width': 2.2,
         },
       },
-      // Major Cities & State Headers (All Zooms)
       {
         id: 'resq-label-place-city',
         type: 'symbol',
@@ -606,7 +729,7 @@ export function buildResqVectorStyle({ theme = 'light' } = {}) {
         paint: {
           'text-color': p.label,
           'text-halo-color': p.labelHalo,
-          'text-halo-width': 2.5,
+          'text-halo-width': 2.6,
         },
       },
     ],
