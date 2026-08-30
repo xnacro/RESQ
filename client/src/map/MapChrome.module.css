@@ -1,4 +1,4 @@
-/* MapChrome CSS Module */
+/* MapChrome CSS Module with Glassmorphism */
 
 .chromeOverlay {
   position: absolute;
@@ -10,22 +10,31 @@
   z-index: var(--z-map-chrome);
 }
 
-.topLeftPill {
+.topLeftStack {
   position: absolute;
   top: var(--sp-4);
   left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.topLeftPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: var(--chrome-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--chrome-border);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.85);
   border-radius: var(--r-pill);
-  box-shadow: var(--chrome-shadow);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
   pointer-events: auto;
   font-size: var(--fs-xs);
   color: var(--text-dim);
+  width: fit-content;
 }
 
 .pillIcon {
@@ -57,11 +66,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--chrome-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--chrome-border);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.85);
   border-radius: var(--r-pill);
-  box-shadow: var(--chrome-shadow);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   padding: 4px;
   gap: 3px;
 }
@@ -113,7 +123,7 @@
   align-items: center;
   gap: var(--sp-3);
   padding: 3px 8px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
   border-radius: var(--r-sm);
   border: 1px solid var(--line-subtle);
@@ -162,7 +172,7 @@
 }
 
 @media (max-width: 768px) {
-  .topLeftPill {
+  .topLeftStack {
     display: none;
   }
   .bottomStrip {

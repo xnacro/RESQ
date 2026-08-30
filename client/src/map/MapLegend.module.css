@@ -1,0 +1,68 @@
+/* Compact RESQ Map Legend Styles with Glassmorphism */
+.legendContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: var(--r-pill);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  font-family: var(--font-sans);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  border-right: 1px solid rgba(203, 213, 225, 0.6);
+}
+
+.headerIcon {
+  color: var(--accent);
+}
+
+.title {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.itemsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4.5px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 640px) {
+  .legendContainer {
+    display: none;
+  }
+}

@@ -6,6 +6,7 @@ import { formatCoord } from '../lib/format.js'
 import { metersPerPixel } from './projection.js'
 import { useCursorPosition, useMapViewport } from './viewportContext.js'
 import { LayerSwitcher } from './LayerSwitcher.jsx'
+import { MapLegend } from './MapLegend.jsx'
 import { MAP_MODES } from './mapStyles.js'
 import styles from './MapChrome.module.css'
 
@@ -122,12 +123,15 @@ export function MapChrome({
 
   return (
     <div className={styles.chromeOverlay}>
-      {/* Top-left floating attribution indicator */}
-      <div className={styles.topLeftPill}>
-        <Info size={14} className={styles.pillIcon} />
-        <span className={styles.pillBold}>RESQ Map</span>
-        <span className={styles.pillSep}>|</span>
-        <span className={styles.pillText}>Assam & Meghalaya (408k Grids)</span>
+      {/* Top-left floating attribution and legend stack */}
+      <div className={styles.topLeftStack}>
+        <div className={styles.topLeftPill}>
+          <Info size={14} className={styles.pillIcon} />
+          <span className={styles.pillBold}>RESQ Map</span>
+          <span className={styles.pillSep}>|</span>
+          <span className={styles.pillText}>Assam & Meghalaya (408k Grids)</span>
+        </div>
+        <MapLegend />
       </div>
 
       {/* Right vertical controls stack */}
@@ -148,3 +152,5 @@ export function MapChrome({
     </div>
   )
 }
+
+export default MapChrome

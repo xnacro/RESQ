@@ -1,8 +1,9 @@
-// MapLibre WebGL vector map substrate for RESQ disaster intelligence
+// MapLibre WebGL vector map substrate with custom RESQ cartography and risk overlays
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as maplibreModule from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { getMapStyle, MAP_MODES } from './mapStyles.js'
+import { RESQ_RISK_COLORS, RESQ_EVENT_COLORS, RESQ_ROUTE_PRESETS } from './resqCartographyTokens.js'
 import { GUWAHATI_CENTER, DEFAULT_ZOOM } from './constants.js'
 import { useViewportStore, useCursorStore } from './viewportContext.js'
 import { getViewportGrids, getActiveDisasterEvents } from '../services/api.js'
@@ -51,7 +52,7 @@ export function MapSurface({
   selectedLocationRef.current = selectedLocation
   modeRef.current = mode
 
-  // Helper to attach custom layers on top of OpenFreeMap vector styles
+  // Helper to attach custom RESQ operational layers on top of basemap
   const addCustomLayers = useCallback((map) => {
     if (!map || !map.isStyleLoaded()) return
 
@@ -59,7 +60,7 @@ export function MapSurface({
     const firstSymbol = allLayers.find((l) => l.type === 'symbol')
     const beforeId = firstSymbol ? firstSymbol.id : undefined
 
-    // 1. 3D buildings extrusion layer for OpenFreeMap 3D mode
+    // 1. 3D buildings extrusion layer for OpenMapTiles 3D mode
     if (modeRef.current === MAP_MODES.D3 && map.getSource('openmaptiles') && !map.getLayer('3d-buildings')) {
       map.addLayer(
         {
@@ -92,7 +93,7 @@ export function MapSurface({
       )
     }
 
-    // 2. 500m Risk Grid Fill and Line Layers below labels
+    // 2. 500m RESQ Risk Grid Fill and Line Layers (Semi-transparent data layer)
     if (!map.getSource('risk-grid-source')) {
       map.addSource('risk-grid-source', {
         type: 'geojson',
@@ -108,9 +109,9 @@ export function MapSurface({
             'fill-color': [
               'match',
               ['get', 'risk_status'],
-              'CRITICAL', 'rgba(220, 38, 38, 0.45)',
-              'HIGH', 'rgba(234, 88, 12, 0.35)',
-              'MODERATE', 'rgba(217, 119, 6, 0.25)',
+              'CRITICAL', RESQ_RISK_COLORS.CRITICAL.fillRgba,
+              'HIGH', RESQ_RISK_COLORS.HIGH.fillRgba,
+              'MODERATE', RESQ_RISK_COLORS.MODERATE.fillRgba,
               'rgba(0, 0, 0, 0)',
             ],
             'fill-opacity': 0.85,
@@ -128,10 +129,10 @@ export function MapSurface({
             'line-color': [
               'match',
               ['get', 'risk_status'],
-              'CRITICAL', '#dc2626',
-              'HIGH', '#ea580c',
-              'MODERATE', '#d97706',
-              'rgba(148, 163, 184, 0.2)',
+              'CRITICAL', RESQ_RISK_COLORS.CRITICAL.color,
+              'HIGH', RESQ_RISK_COLORS.HIGH.color,
+              'MODERATE', RESQ_RISK_COLORS.MODERATE.color,
+              'rgba(148, 163, 184, 0.15)',
             ],
             'line-width': 1.0,
             'line-opacity': 0.8,
@@ -171,10 +172,10 @@ export function MapSurface({
             'fill-color': [
               'match',
               ['get', 'risk_status'],
-              'CRITICAL', 'rgba(220, 38, 38, 0.55)',
-              'HIGH', 'rgba(234, 88, 12, 0.45)',
-              'MODERATE', 'rgba(217, 119, 6, 0.35)',
-              'rgba(37, 99, 235, 0.25)',
+              'CRITICAL', 'rgba(220, 38, 38, 0.35)',
+              'HIGH', 'rgba(234, 88, 12, 0.30)',
+              'MODERATE', 'rgba(245, 158, 11, 0.25)',
+              'rgba(37, 99, 235, 0.20)',
             ],
             'fill-opacity': 0.9,
           },
@@ -197,7 +198,43 @@ export function MapSurface({
       )
     }
 
-    // 4. Active Disaster Events Circle Markers
+    // 4. Prepared Safe & Risk Route Segments (Ready for routing phase)
+    if (!map.getSource('resq-route-source')) {
+      map.addSource('resq-route-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addLayer(
+        {
+          id: 'resq-route-casing',
+          type: 'line',
+          source: 'resq-route-source',
+          paint: {
+            'line-color': RESQ_ROUTE_PRESETS.SAFE.casingColor,
+            'line-width': RESQ_ROUTE_PRESETS.SAFE.casingWidth,
+            'line-opacity': 0.9,
+          },
+        },
+        beforeId,
+      )
+
+      map.addLayer(
+        {
+          id: 'resq-route-line',
+          type: 'line',
+          source: 'resq-route-source',
+          paint: {
+            'line-color': RESQ_ROUTE_PRESETS.SAFE.fillColor,
+            'line-width': RESQ_ROUTE_PRESETS.SAFE.fillWidth,
+            'line-opacity': 1,
+          },
+        },
+        beforeId,
+      )
+    }
+
+    // 5. Active Disaster Events Circle Markers
     if (!map.getSource('active-events-source')) {
       map.addSource('active-events-source', {
         type: 'geojson',
@@ -211,21 +248,23 @@ export function MapSurface({
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['zoom'],
-            9, 8,
-            14, 14,
+            9, 7,
+            14, 13,
           ],
           'circle-color': [
             'match',
             ['get', 'hazard_type'],
-            'FLASH_FLOOD', '#2563eb',
-            'FLOOD', '#0284c7',
-            'LANDSLIDE', '#b45309',
-            'EARTHQUAKE', '#7c3aed',
-            '#dc2626',
+            'FLASH_FLOOD', RESQ_EVENT_COLORS.FLASH_FLOOD,
+            'FLOOD', RESQ_EVENT_COLORS.FLOOD,
+            'LANDSLIDE', RESQ_EVENT_COLORS.LANDSLIDE,
+            'EARTHQUAKE', RESQ_EVENT_COLORS.EARTHQUAKE,
+            'BRIDGE_CLOSURE', RESQ_EVENT_COLORS.BRIDGE_CLOSURE,
+            'ROAD_BLOCKAGE', RESQ_EVENT_COLORS.ROAD_BLOCKAGE,
+            RESQ_EVENT_COLORS.DEFAULT,
           ],
           'circle-stroke-width': 2.5,
           'circle-stroke-color': '#ffffff',
-          'circle-opacity': 0.9,
+          'circle-opacity': 0.95,
         },
       })
 
@@ -238,18 +277,18 @@ export function MapSurface({
           if (popupRef.current) popupRef.current.remove()
 
           const popupHtml = `
-            <div style="font-family: var(--font-sans); padding: 4px; min-width: 200px;">
-              <div style="font-size: 11px; font-weight: 700; color: #dc2626; text-transform: uppercase; margin-bottom: 2px;">
-                🚨 ${props.event_type || 'DISASTER EVENT'}
+            <div style="font-family: var(--font-sans, system-ui); padding: 6px 8px; min-width: 220px;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #dc2626; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px;">
+                ${props.event_type || 'DISASTER ALERT'}
               </div>
-              <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">
+              <div style="font-size: 12.5px; font-weight: 700; color: #0f172a; line-height: 1.35; margin-bottom: 5px;">
                 ${props.news_title || props.location_text || 'Reported Hazard'}
               </div>
-              <div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">
-                Severity: <b>${props.severity || 0}/100</b> | Confidence: <b>${Math.round((props.confidence || 0.9) * 100)}%</b>
+              <div style="font-size: 11px; color: #475569; margin-bottom: 4px;">
+                Severity: <b>${props.severity || 0}/100</b> · Confidence: <b>${Math.round((props.confidence || 0.9) * 100)}%</b>
               </div>
               <div style="font-size: 10px; color: #94a3b8;">
-                Source: ${props.source_name || 'Verified Media'}
+                Source: ${props.source_name || 'Regional Media'}
               </div>
             </div>
           `
@@ -274,7 +313,7 @@ export function MapSurface({
       })
     }
 
-    // 5. User Location WebGL Circle Layers (GPU-rendered fallback)
+    // 6. User Location WebGL Circle Layers (GPU-rendered fallback)
     if (!map.getSource('user-location-source')) {
       map.addSource('user-location-source', {
         type: 'geojson',
@@ -288,10 +327,10 @@ export function MapSurface({
         paint: {
           'circle-radius': 22,
           'circle-color': '#2563eb',
-          'circle-opacity': 0.3,
-          'circle-stroke-width': 2,
+          'circle-opacity': 0.25,
+          'circle-stroke-width': 1.5,
           'circle-stroke-color': '#2563eb',
-          'circle-stroke-opacity': 0.7,
+          'circle-stroke-opacity': 0.6,
         },
       })
 
@@ -300,9 +339,9 @@ export function MapSurface({
         type: 'circle',
         source: 'user-location-source',
         paint: {
-          'circle-radius': 9,
+          'circle-radius': 8,
           'circle-color': '#2563eb',
-          'circle-stroke-width': 3,
+          'circle-stroke-width': 2.5,
           'circle-stroke-color': '#ffffff',
           'circle-opacity': 1,
         },
@@ -330,17 +369,17 @@ export function MapSurface({
         bounds.getSouth(),
         bounds.getEast(),
         bounds.getNorth(),
-        400,
+        Math.round(map.getZoom()),
       )
-      if (map.getSource('risk-grid-source')) {
-        map.getSource('risk-grid-source').setData(geoJson)
+      if (geoJson && map.getSource('risk-grid-source')) {
+        source.setData(geoJson)
       }
     } catch (err) {
-      console.error('Failed to load viewport grids:', err.message)
+      console.error('Failed to load viewport grids:', err)
     }
   }, [])
 
-  // Helper to fetch active disaster event markers
+  // Helper to fetch active disaster events
   const refreshActiveEvents = useCallback(async () => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
@@ -349,32 +388,17 @@ export function MapSurface({
     if (!source) return
 
     try {
-      const events = await getActiveDisasterEvents()
-      const geoJson = {
-        type: 'FeatureCollection',
-        features: events
-          .filter((ev) => ev.longitude && ev.latitude)
-          .map((ev) => ({
-            type: 'Feature',
-            id: ev.id,
-            geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(ev.longitude), parseFloat(ev.latitude)],
-            },
-            properties: {
-              ...ev,
-              hazard_type: ev.hazard_type || ev.event_type,
-            },
-          })),
+      const geoJson = await getActiveDisasterEvents()
+      if (geoJson && map.getSource('active-events-source')) {
+        source.setData(geoJson)
       }
-      source.setData(geoJson)
     } catch (err) {
-      console.error('Failed to load active events:', err.message)
+      console.error('Failed to load active events:', err)
     }
   }, [])
 
-  // Helper to update the pulsing location marker on the map
-  const updateLocationMarker = useCallback((loc, mapInstance) => {
+  // Helper to update or position the user location marker
+  const updateLocationMarker = useCallback((loc, mapInstance = null) => {
     const map = mapInstance || mapRef.current
     if (!map) return
 
@@ -403,10 +427,10 @@ export function MapSurface({
         const el = document.createElement('div')
         el.className = 'resq-user-location-marker'
         el.innerHTML = `
-          <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
-            <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(37,99,235,0.3); animation:pulseRing 2s infinite ease-out;"></div>
-            <div style="position:relative; width:22px; height:22px; border-radius:50%; background:#2563eb; border:3.5px solid #ffffff; box-shadow:0 3px 12px rgba(0,0,0,0.5); z-index:2; display:flex; align-items:center; justify-content:center;">
-              <div style="width:6px; height:6px; border-radius:50%; background:#ffffff;"></div>
+          <div style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:pointer;">
+            <div style="position:absolute; width:44px; height:44px; border-radius:50%; background:rgba(37,99,235,0.25); animation:pulseRing 2s infinite ease-out;"></div>
+            <div style="position:relative; width:20px; height:20px; border-radius:50%; background:#2563eb; border:3px solid #ffffff; box-shadow:0 2px 10px rgba(0,0,0,0.3); z-index:2; display:flex; align-items:center; justify-content:center;">
+              <div style="width:5px; height:5px; border-radius:50%; background:#ffffff;"></div>
             </div>
           </div>
         `
@@ -448,10 +472,6 @@ export function MapSurface({
       center: GUWAHATI_CENTER,
       zoom: DEFAULT_ZOOM,
       pitch: modeRef.current === MAP_MODES.D3 ? 55 : 0,
-      bearing: modeRef.current === MAP_MODES.D3 ? -15 : 0,
-      attributionControl: false,
-      dragRotate: true,
-      touchPitch: true,
     })
 
     viewportStore.setMapInstance(map)
