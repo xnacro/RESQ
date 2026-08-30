@@ -99,10 +99,10 @@ export function buildResqVectorStyle({ theme = 'light', mode = 'normal' } = {}) 
         type: 'hillshade',
         source: 'resq-terrain-dem',
         layout: {
-          visibility: isTerrain || is3D ? 'visible' : 'none',
+          visibility: isTerrain ? 'visible' : 'none',
         },
         paint: {
-          'hillshade-exaggeration': 0.85,
+          'hillshade-exaggeration': 0.90,
           'hillshade-shadow-color': isDark ? '#0f172a' : '#475569',
           'hillshade-highlight-color': '#ffffff',
           'hillshade-accent-color': '#38bdf8',

@@ -109,7 +109,7 @@ export function MapSurface({
           id: 'resq-hillshade',
           type: 'hillshade',
           source: 'resq-terrain-dem',
-          layout: { visibility: mode === MAP_MODES.TERRAIN || mode === MAP_MODES.D3 ? 'visible' : 'none' },
+          layout: { visibility: mode === MAP_MODES.TERRAIN ? 'visible' : 'none' },
           paint: {
             'hillshade-exaggeration': 0.90,
             'hillshade-shadow-color': '#1e293b',
@@ -131,7 +131,7 @@ export function MapSurface({
           source: 'openmaptiles',
           'source-layer': 'building',
           minzoom: 13,
-          layout: { visibility: 'none' },
+          layout: { visibility: mode === MAP_MODES.D3 ? 'visible' : 'none' },
           paint: {
             'fill-extrusion-color': [
               'interpolate',
@@ -600,6 +600,12 @@ export function MapSurface({
 
     // Dynamic switching between Vector Modes (NORMAL, LIBERTY, 3D, TERRAIN, RESQ)
     if (mode === MAP_MODES.D3) {
+      // 3D Mode: Urban extruded buildings, flat ground (NO DEM mesh), NO hillshade
+      try {
+        map.setTerrain(null)
+      } catch {
+        // Ignore
+      }
       if (map.isStyleLoaded()) {
         if (map.getLayer('resq-3d-buildings')) {
           map.setLayoutProperty('resq-3d-buildings', 'visibility', 'visible')
@@ -608,19 +614,15 @@ export function MapSurface({
           map.setLayoutProperty('resq-building-fill', 'visibility', 'none')
         }
         if (map.getLayer('resq-hillshade')) {
-          map.setLayoutProperty('resq-hillshade', 'visibility', 'visible')
+          map.setLayoutProperty('resq-hillshade', 'visibility', 'none')
         }
-      }
-      try {
-        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.4 })
-      } catch {
-        // DEM terrain fallback
       }
       map.easeTo({ pitch: 60, bearing: -20, duration: 800 })
       return
     }
 
     if (mode === MAP_MODES.TERRAIN) {
+      // Terrain Mode: Topographic DEM elevation mesh + shaded relief, flat 2D buildings (NO 3D extrusions)
       if (map.isStyleLoaded()) {
         if (map.getLayer('resq-hillshade')) {
           map.setLayoutProperty('resq-hillshade', 'visibility', 'visible')
@@ -633,7 +635,7 @@ export function MapSurface({
         }
       }
       try {
-        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.8 })
+        map.setTerrain({ source: 'resq-terrain-dem', exaggeration: 1.5 })
       } catch {
         // DEM terrain fallback
       }
