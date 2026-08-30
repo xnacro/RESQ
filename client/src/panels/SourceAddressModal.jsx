@@ -37,25 +37,29 @@ export function SourceAddressModal({
   // Debounced geocoding search
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length < 2) {
-      setSearchResults([])
-      setIsSearching(false)
       return
     }
 
+    let active = true
     const timer = setTimeout(async () => {
       setIsSearching(true)
       try {
         const results = await searchGeocode(searchQuery.trim())
-        setSearchResults(results || [])
+        if (active) {
+          setSearchResults(results || [])
+        }
       } catch (err) {
         console.error('Search failed:', err)
-        setSearchResults([])
+        if (active) setSearchResults([])
       } finally {
-        setIsSearching(false)
+        if (active) setIsSearching(false)
       }
     }, 280)
 
-    return () => clearTimeout(timer)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [searchQuery])
 
   // Handle GPS location acquisition

@@ -15,6 +15,7 @@ import {
   CornerUpRight,
   CornerUpLeft,
 } from 'lucide-react'
+import { useMemo } from 'react'
 import styles from './RouteSummaryPanel.module.css'
 
 // Helper to format maneuver distance in meters or kilometers
@@ -55,17 +56,21 @@ export function RouteSummaryPanel({
   onStartNavigation,
   onClearRoute,
 }) {
-  if (!routeData) return null
-
   const originName = origin?.displayName || origin?.name || 'Starting Point'
   const destName = destination?.displayName || destination?.name || 'Destination'
-  const distanceKm = routeData.distanceKm ?? 0
-  const durationMin = routeData.durationMinutes ?? Math.round((routeData.durationSeconds || 0) / 60)
-  const instructions = routeData.instructions || []
+  const distanceKm = routeData?.distanceKm ?? 0
+  const durationMin = routeData?.durationMinutes ?? Math.round((routeData?.durationSeconds || 0) / 60)
+  const instructions = routeData?.instructions || []
 
   // Estimate arrival time
-  const arrivalDate = new Date(Date.now() + (routeData.durationSeconds || 0) * 1000)
-  const etaFormatted = arrivalDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const etaFormatted = useMemo(() => {
+    const totalSec = routeData?.durationSeconds || 0
+    const now = new Date()
+    const arrivalTime = new Date(now.getTime() + totalSec * 1000)
+    return arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }, [routeData?.durationSeconds])
+
+  if (!routeData) return null
 
   return (
     <div className={styles.container}>
