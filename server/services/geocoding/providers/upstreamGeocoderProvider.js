@@ -1,12 +1,19 @@
-// Upstream Geocoding Provider Adapter
+// Internal Geocoding Provider Adapter
 // Connects to internal composite pipeline (/api/geocoder/search & /api/geocoder/reverse)
 // Resolves locations across Assam, Meghalaya, and national transit corridors with schema normalization
 
-const PROVIDER_BASE_URL =
-  process.env.GEOCODER_PROVIDER_URL ||
-  process.env.INTERNAL_GEOCODER_URL ||
-  null;
-const PROVIDER_TIMEOUT_MS = parseInt(process.env.GEOCODER_PROVIDER_TIMEOUT_MS || "4000", 10);
+const DEFAULT_PROVIDER_URL = "https://surakshaai.org/api/geocoder";
+const DEFAULT_TIMEOUT_MS = 4000;
+
+// Retrieves configured provider base URL
+function getProviderBaseUrl() {
+  return process.env.GEOCODER_PROVIDER_URL || DEFAULT_PROVIDER_URL;
+}
+
+// Retrieves configured timeout in milliseconds
+function getProviderTimeoutMs() {
+  return parseInt(process.env.GEOCODER_PROVIDER_TIMEOUT_MS || String(DEFAULT_TIMEOUT_MS), 10);
+}
 
 // Helper to extract state and district from unstructured address strings
 function extractStateAndDistrict(raw) {
@@ -60,6 +67,8 @@ function normalizeCandidate(raw) {
     displayName: display,
     latitude: lat,
     longitude: lon,
+    lat,
+    lon,
     state,
     district,
     pincode: raw.pincode || null,
@@ -68,20 +77,22 @@ function normalizeCandidate(raw) {
   };
 }
 
-// Executes forward location search against upstream provider
+// Executes forward location search against internal provider
 export const search = async (query, options = {}) => {
-  if (!PROVIDER_BASE_URL || !query || typeof query !== "string") {
+  const providerBase = getProviderBaseUrl();
+  if (!providerBase || !query || typeof query !== "string") {
     return [];
   }
 
   const cleanQuery = query.trim();
   if (cleanQuery.length < 2) return [];
 
+  const timeoutMs = getProviderTimeoutMs();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const baseUrl = PROVIDER_BASE_URL.replace(/\/+$/, "");
+    const baseUrl = providerBase.replace(/\/+$/, "");
     const searchUrl = new URL(`${baseUrl}/search`);
     searchUrl.searchParams.set("q", cleanQuery);
 
@@ -103,10 +114,10 @@ export const search = async (query, options = {}) => {
     const rawItems = Array.isArray(payload.data)
       ? payload.data
       : Array.isArray(payload.candidates)
-      ? payload.candidates
-      : Array.isArray(payload)
-      ? payload
-      : [];
+        ? payload.candidates
+        : Array.isArray(payload)
+          ? payload
+          : [];
 
     const normalized = [];
     for (const item of rawItems) {
@@ -125,17 +136,19 @@ export const search = async (query, options = {}) => {
   }
 };
 
-// Executes reverse geocoding against upstream provider
+// Executes reverse geocoding against internal provider
 export const reverse = async (latitude, longitude, options = {}) => {
-  if (!PROVIDER_BASE_URL || isNaN(latitude) || isNaN(longitude)) {
+  const providerBase = getProviderBaseUrl();
+  if (!providerBase || isNaN(latitude) || isNaN(longitude)) {
     return null;
   }
 
+  const timeoutMs = getProviderTimeoutMs();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const baseUrl = PROVIDER_BASE_URL.replace(/\/+$/, "");
+    const baseUrl = providerBase.replace(/\/+$/, "");
     const reverseUrl = new URL(`${baseUrl}/reverse`);
     reverseUrl.searchParams.set("lat", String(latitude));
     reverseUrl.searchParams.set("lng", String(longitude));
@@ -158,10 +171,10 @@ export const reverse = async (latitude, longitude, options = {}) => {
     const rawItems = Array.isArray(payload.data)
       ? payload.data
       : payload.data
-      ? [payload.data]
-      : Array.isArray(payload)
-      ? payload
-      : [payload];
+        ? [payload.data]
+        : Array.isArray(payload)
+          ? payload
+          : [payload];
 
     if (rawItems.length > 0) {
       return normalizeCandidate(rawItems[0]);

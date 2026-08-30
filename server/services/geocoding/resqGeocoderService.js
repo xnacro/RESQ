@@ -69,6 +69,23 @@ function getCache(map, key) {
   return item.data;
 }
 
+// Checks if a candidate is located within regional Northeast India bounds
+function isRegionalLocation(item) {
+  const state = String(item.state || "").toLowerCase();
+  const district = String(item.district || "").toLowerCase();
+  const regionalStates = ["assam", "meghalaya", "arunachal", "nagaland", "manipur", "mizoram", "tripura"];
+
+  if (regionalStates.some((s) => state.includes(s))) return true;
+  if (district.includes("kamrup") || district.includes("khasi") || district.includes("garo") || district.includes("jaintia")) return true;
+
+  const lat = Number(item.latitude ?? item.lat);
+  const lon = Number(item.longitude ?? item.lon);
+  if (!isNaN(lat) && !isNaN(lon)) {
+    return lat >= 24.0 && lat <= 28.5 && lon >= 89.0 && lon <= 97.5;
+  }
+  return false;
+}
+
 // Executes forward geocoding search across local gazetteers, PostGIS grids, and the upstream provider
 export const forwardGeocode = async (rawQuery, options = {}) => {
   if (!rawQuery || typeof rawQuery !== "string") {
@@ -114,11 +131,14 @@ export const forwardGeocode = async (rawQuery, options = {}) => {
         const cell = gridRes.rows[0];
         candidates.push({
           name: `Grid ${cell.grid_id}`,
+          displayName: `Grid ${cell.grid_id}, ${cell.district || (isAssam ? "Assam" : "Meghalaya")}`,
           category: "GRID_CELL",
           district: cell.district || (isAssam ? "Assam" : "Meghalaya"),
           state: cell.state,
           lat: parseFloat(cell.center_lat),
           lon: parseFloat(cell.center_lon),
+          latitude: parseFloat(cell.center_lat),
+          longitude: parseFloat(cell.center_lon),
           gridId: cell.grid_id,
           riskScore: parseFloat(cell.risk_score || 0),
           riskStatus: cell.risk_status || "LOW",
@@ -136,31 +156,40 @@ export const forwardGeocode = async (rawQuery, options = {}) => {
     if (lowerName === query) {
       candidates.push({
         name: item.name,
+        displayName: `${item.name}, ${item.district}, ${item.state}`,
         category: "TOWN_LOCALITY",
         district: item.district,
         state: item.state,
         lat: item.lat,
         lon: item.lon,
+        latitude: item.lat,
+        longitude: item.lon,
         score: 0.98,
       });
     } else if (lowerName.startsWith(query) || query.startsWith(lowerName)) {
       candidates.push({
         name: item.name,
+        displayName: `${item.name}, ${item.district}, ${item.state}`,
         category: "TOWN_LOCALITY",
         district: item.district,
         state: item.state,
         lat: item.lat,
         lon: item.lon,
+        latitude: item.lat,
+        longitude: item.lon,
         score: 0.92,
       });
     } else if (lowerName.includes(query) || query.includes(lowerName)) {
       candidates.push({
         name: item.name,
+        displayName: `${item.name}, ${item.district}, ${item.state}`,
         category: "TOWN_LOCALITY",
         district: item.district,
         state: item.state,
         lat: item.lat,
         lon: item.lon,
+        latitude: item.lat,
+        longitude: item.lon,
         score: 0.86,
       });
     }
@@ -172,21 +201,27 @@ export const forwardGeocode = async (rawQuery, options = {}) => {
     if (lowerName === query || `${lowerName} district` === query) {
       candidates.push({
         name: `${name} District`,
+        displayName: `${name} District, ${data.state}`,
         category: "DISTRICT",
         district: name,
         state: data.state,
         lat: data.lat,
         lon: data.lon,
+        latitude: data.lat,
+        longitude: data.lon,
         score: 0.95,
       });
     } else if (lowerName.includes(query) || query.includes(lowerName)) {
       candidates.push({
         name: `${name} District`,
+        displayName: `${name} District, ${data.state}`,
         category: "DISTRICT",
         district: name,
         state: data.state,
         lat: data.lat,
         lon: data.lon,
+        latitude: data.lat,
+        longitude: data.lon,
         score: 0.85,
       });
     }
@@ -200,11 +235,14 @@ export const forwardGeocode = async (rawQuery, options = {}) => {
       const coord = CORRIDOR_COORDINATES[corridor.name] || { lat: 26.1445, lon: 91.7362, state: "Assam" };
       candidates.push({
         name: corridor.name,
+        displayName: `${corridor.name}, ${coord.state}`,
         category: corridor.name.includes("Bridge") ? "BRIDGE_STRUCTURE" : "HIGHWAY_CORRIDOR",
         district: "Transit Corridor",
         state: coord.state,
         lat: coord.lat,
         lon: coord.lon,
+        latitude: coord.lat,
+        longitude: coord.lon,
         score: 0.90,
       });
     }
@@ -216,38 +254,48 @@ export const forwardGeocode = async (rawQuery, options = {}) => {
     if (lowerName.includes(query) || query.includes(lowerName)) {
       candidates.push({
         name: `${riverName} River Basin`,
+        displayName: `${riverName} River Basin, Assam / Meghalaya`,
         category: "RIVER_BASIN",
         district: "River System",
         state: "Assam / Meghalaya",
         lat: 26.1445,
         lon: 91.7362,
+        latitude: 26.1445,
+        longitude: 91.7362,
         score: 0.80,
       });
     }
   }
 
-  // Priority 6: Upstream Provider Search (Non-blocking with error isolation)
+  // Priority 6: Upstream Provider Search (Suraksha composite geocoder)
   try {
-    const providerResults = await upstreamGeocoderProvider.search(rawQuery, { limit: 8 });
+    const providerResults = await upstreamGeocoderProvider.search(rawQuery, { limit: 10 });
     for (const pr of providerResults) {
+      const regional = isRegionalLocation(pr);
+      const baseConfidence = pr.confidence || 0.70;
+      const score = regional ? Math.min(0.99, baseConfidence + 0.25) : Math.max(0.1, baseConfidence - 0.3);
+
       candidates.push({
         name: pr.name,
-        displayName: pr.displayName,
+        displayName: pr.displayName || pr.name,
         category: (pr.placeType || "LOCATION").toUpperCase(),
-        district: pr.district || "Regional",
-        state: pr.state,
+        district: pr.district || (regional ? "Assam/Meghalaya" : "Regional"),
+        state: pr.state || (regional ? "Assam" : "India"),
         lat: pr.latitude,
         lon: pr.longitude,
-        score: pr.confidence || 0.80,
+        latitude: pr.latitude,
+        longitude: pr.longitude,
+        score,
       });
     }
   } catch (e) {
     // Provider failure isolated; local candidates retained
   }
 
-  // Sort candidates by relevance score and deduplicate by spatial proximity
+  // Sort candidates by relevance score
   candidates.sort((a, b) => b.score - a.score);
 
+  // Deduplicate candidates by spatial proximity and normalized name
   const seen = new Set();
   const deduped = [];
 
@@ -373,6 +421,8 @@ export const reverseGeocode = async (lat, lon, options = {}) => {
     distanceToLocalityKm: Math.round(minLocalityDist * 10) / 10,
     lat,
     lon,
+    latitude: lat,
+    longitude: lon,
   };
 
   // Cache reverse geocode result
