@@ -137,18 +137,20 @@
   pointer-events: auto;
 }
 
-.bottomStrip {
+.topRightStrip {
   position: absolute;
-  bottom: var(--sp-2);
-  left: var(--sp-4);
+  top: var(--sp-4);
+  right: var(--sp-4);
   display: inline-flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: 3px 8px;
+  padding: 6px 12px;
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(8px);
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line-subtle);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: var(--r-pill);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
   font-size: var(--fs-micro);
   color: var(--text-muted);
   pointer-events: auto;
@@ -193,11 +195,15 @@
   font-size: var(--fs-micro);
 }
 
-@media (max-width: 768px) {
+/* Branding pill yields first so it never collides with the scale readout */
+@media (max-width: 1100px) {
   .topLeftStack {
     display: none;
   }
-  .bottomStrip {
+}
+
+@media (max-width: 768px) {
+  .topRightStrip {
     display: none;
   }
   .rightRail {

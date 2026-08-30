@@ -175,8 +175,8 @@ export function MapChrome({
         <LayerSwitcher activeMode={activeMode} onModeChange={onModeChange} />
       </div>
 
-      {/* Bottom strip status */}
-      <div className={styles.bottomStrip}>
+      {/* Top-right scale and coordinate readout */}
+      <div className={styles.topRightStrip}>
         <ScaleBar />
         <CoordinateReadout />
       </div>
