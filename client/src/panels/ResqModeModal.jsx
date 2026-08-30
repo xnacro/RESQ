@@ -4,13 +4,10 @@ import {
   X,
   Truck,
   Droplets,
-  Package,
   HeartPulse,
   Navigation,
   ShieldCheck,
-  AlertTriangle,
   Flame,
-  ArrowRight,
 } from 'lucide-react'
 import { Button, Badge, TextField } from '../ui/index.js'
 import styles from './ResqModeModal.module.css'

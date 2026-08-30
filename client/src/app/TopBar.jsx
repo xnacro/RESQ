@@ -17,23 +17,19 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState([])
   const [isOpen, setIsOpen] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
   const searchWrapperRef = useRef(null)
 
   // Debounced geocoding search
   useEffect(() => {
-    if (!query.trim() || query.length < 2) {
-      setCandidates([])
-      setIsOpen(false)
+    const trimmed = query.trim()
+    if (trimmed.length < 2) {
       return
     }
 
     const timer = setTimeout(async () => {
-      setIsSearching(true)
-      const results = await searchGeocode(query)
+      const results = await searchGeocode(trimmed)
       setCandidates(results)
       setIsOpen(results.length > 0)
-      setIsSearching(false)
     }, 200)
 
     return () => clearTimeout(timer)

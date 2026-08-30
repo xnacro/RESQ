@@ -18,6 +18,44 @@
   overflow: hidden;
 }
 
+.geoBanner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: var(--z-overlay);
+  animation: bannerFade 0.2s ease-out;
+}
+
+@keyframes bannerFade {
+  0% { opacity: 0; transform: translate(-50%, -6px); }
+  100% { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.geoBannerClose {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 11px;
+}
+
+.geoBannerClose:hover {
+  color: var(--text);
+}
+
 @media (max-width: 767px) {
   .screen {
     flex-direction: column;

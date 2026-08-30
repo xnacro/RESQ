@@ -11,7 +11,6 @@ import {
   ExternalLink,
   Info,
   Clock,
-  Sparkles,
   CheckCircle2,
 } from 'lucide-react'
 import {
@@ -20,8 +19,6 @@ import {
   MeterBar,
   Panel,
   PanelBody,
-  PanelHeader,
-  ScoreReadout,
   TabPanel,
   Tabs,
   KeyValueRow,
@@ -47,19 +44,15 @@ export function ContextPanel({
   const [collapsed, setCollapsed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [riskData, setRiskData] = useState(null)
-  const [error, setError] = useState(null)
 
   // Fetch full explainability breakdown when selectedGridId changes
   useEffect(() => {
     if (!selectedGridId) {
-      setRiskData(null)
       return
     }
 
     let isCurrent = true
     setLoading(true)
-    setError(null)
-
     getGridRiskBreakdown(selectedGridId)
       .then((data) => {
         if (!isCurrent) return
@@ -68,7 +61,7 @@ export function ContextPanel({
       })
       .catch((err) => {
         if (!isCurrent) return
-        setError(err.message)
+        console.error('Risk fetch error:', err.message)
         setLoading(false)
       })
 
@@ -349,7 +342,7 @@ export function ContextPanel({
                           <div className={styles.evidenceFooter}>
                             <span className={styles.evidenceTime}>
                               <Clock size={11} />
-                              {new Date(ev.reported_at || Date.now()).toLocaleDateString()}
+                              {ev.reported_at ? new Date(ev.reported_at).toLocaleDateString() : 'Recent'}
                             </span>
                             {ev.news_url && (
                               <a

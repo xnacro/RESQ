@@ -183,10 +183,25 @@ export default function MapView() {
             onEventSelect={handleEventSelect}
           />
 
+          {geoError && (
+            <div className={styles.geoBanner}>
+              <span>{geoError}</span>
+              <button
+                type="button"
+                className={styles.geoBannerClose}
+                onClick={() => setGeoError(null)}
+                aria-label="Dismiss error"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <MapChrome
             activeMode={mode}
             onModeChange={setMode}
             onLocateMe={handleLocateMe}
+            isLocating={geoState === GEOLOCATION_STATE.LOCATING}
           />
 
           <MobileBottomSheet

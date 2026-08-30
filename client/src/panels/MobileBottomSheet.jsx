@@ -1,6 +1,6 @@
 // Mobile Expandable Bottom Sheet for Map-First Disaster Intelligence
 import { useState } from 'react'
-import { ChevronUp, ChevronDown, MapPin, Navigation, ShieldAlert, AlertTriangle } from 'lucide-react'
+import { ChevronUp, ChevronDown, Navigation, ShieldAlert } from 'lucide-react'
 import { Badge, Button, MeterBar } from '../ui/index.js'
 import styles from './MobileBottomSheet.module.css'
 
