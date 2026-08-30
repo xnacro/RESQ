@@ -1,4 +1,4 @@
-// MapChrome floating UI controls and overlays inspired by SurakshaAI
+// MapChrome floating UI controls and overlays for RESQ Operations Map
 import { useState } from 'react'
 import { Crosshair, Minus, Plus, Compass, Maximize2, Minimize2, Box, Info } from 'lucide-react'
 import { Tooltip } from '../ui/index.js'

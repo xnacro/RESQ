@@ -20,9 +20,9 @@ The RESQ frontend delivers a **map-first, high-performance operational disaster 
                            +
           REAL-TIME DEVICE GEOLOCATION (Browser GPS)
                            +
-           SURAKSHA GEOCODER (Server-Side Proxy)
-                           =
-  RESQ SOVEREIGN-READY DISASTER INTELLIGENCE INTERFACE
+           INTERNAL GEOCODER (Server-Side Proxy)
+                            =
+   RESQ SOVEREIGN-READY DISASTER INTELLIGENCE INTERFACE
 ```
 
 ---
@@ -129,7 +129,7 @@ PostGIS ST_Contains(geom, ST_Point(lon, lat)) ──► Returns Current Cell (e.
 GET /api/risk/grid/AS_00210744 ──► Populate Right Intelligence Panel with Live Risk
 ```
 
-### 5.2 Location Search & Suraksha Geocoder Proxy
+### 5.2 Location Search & Geocoder Proxy
 ```
 User Types "Guwahati" / "Boko Bridge" / "Nongpoh" in TopBar Search
                │
@@ -138,7 +138,7 @@ Debounced Query (300ms) ──► GET /api/geocode?q={query}
                │
                ▼
 RESQ Backend Geocoder Service
-  ├── 1. Query Suraksha / Regional Gazetteer
+  ├── 1. Query Internal / Regional Gazetteer
   └── 2. Fallback to Local Assam & Meghalaya District & Landmark Gazetteers
                │
                ▼
@@ -150,7 +150,7 @@ User Selects Candidate ──► Fly camera to coordinates + Resolve 500m Grid +
 
 ---
 
-## 6. Screen Architecture: Desktop vs. Mobile (SurakshaAI Alignment)
+## 6. Screen Architecture: Desktop vs. Mobile Layout
 
 ### 6.1 Desktop Layout (~72% Map / ~28% Right Intelligence Panel)
 
@@ -251,7 +251,7 @@ Phase 3: Real-Time Browser Geolocation
    │ ↳ Geolocation API, pulsing radar marker, permission states, reverse grid lookup
    │
    ▼
-Phase 4: Suraksha Geocoder & Server Gazetteers
+Phase 4: Unified Geocoder & Server Gazetteers
    │ ↳ Backend `/api/geocode` proxy, auto-complete search dropdown, camera fly-to
    │
    ▼
