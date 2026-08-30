@@ -1,12 +1,11 @@
-/* TopBar CSS Module */
-
+/* TopBar Navigation Header styles */
 .bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
-  padding: 0 var(--sp-5);
-  background: rgba(255, 255, 255, 0.88);
+  height: var(--topbar-height);
+  padding: 0 var(--sp-4);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
@@ -265,10 +264,161 @@
 }
 
 .sos {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px !important;
+  background-color: #fff1f2 !important;
+  border: 1px solid #fecdd3 !important;
   border-radius: var(--r-pill) !important;
-  font-weight: var(--fw-bold) !important;
-  padding: 0 var(--sp-4) !important;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
+  color: #dc2626 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: all 0.15s ease !important;
+  box-shadow: none !important;
+}
+
+.sos:hover {
+  background-color: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #b91c1c !important;
+}
+
+.sosDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #dc2626;
+  animation: sosPulse 1.6s infinite ease-in-out;
+}
+
+@keyframes sosPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+/* User Profile Control in Header */
+.userControl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.userControl:hover {
+  background: var(--surface-sunken);
+  border-color: #cbd5e1;
+}
+
+.userAvatarCircle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.userInfoCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  line-height: 1.15;
+}
+
+.userNameHeader {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userUsernameHeader {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.signInBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.signInBtn:hover {
+  background-color: var(--surface-sunken);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* Action button for Operator & Admin */
+.reportDamageBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--r-pill);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reportDamageBtn:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.viewerObserverPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
 }
 
 @media (max-width: 768px) {

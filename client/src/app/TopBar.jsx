@@ -1,11 +1,30 @@
-// TopBar navigation header with live search auto-complete, status, and emergency actions
+// TopBar navigation header with live search auto-complete, status, user profile, and operational modals
+
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { Search, Siren, Bell, MapPin, Navigation, Landmark, Building2, Droplets, X } from 'lucide-react'
-import { Button, TextField, Badge } from '../ui/index.js'
+import {
+  Search,
+  Bell,
+  MapPin,
+  Navigation,
+  Landmark,
+  Building2,
+  Droplets,
+  X,
+  Plus,
+  Eye,
+  Radio,
+  LogIn,
+} from 'lucide-react'
+import { TextField, Badge } from '../ui/index.js'
 import { cx } from '../lib/cx.js'
 import { BrandMark } from './BrandMark.jsx'
 import { searchGeocode } from '../services/api.js'
+import { useAuth } from './authContext.jsx'
+import { AuthModal } from './AuthModal.jsx'
+import { UserProfileModal } from './UserProfileModal.jsx'
+import { DamageReportModal } from '../panels/DamageReportModal.jsx'
+import { EmergencyBroadcastModal } from '../panels/EmergencyBroadcastModal.jsx'
 import styles from './TopBar.module.css'
 
 const NAV_ITEMS = [
@@ -14,6 +33,10 @@ const NAV_ITEMS = [
 ]
 
 export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
+  const { user, isAdmin, canEdit, isViewer, openAuthModal } = useAuth()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isReportOpen, setIsReportOpen] = useState(false)
+  const [isSosOpen, setIsSosOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState([])
   const [isOpen, setIsOpen] = useState(false)
@@ -52,7 +75,6 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
     if (onSelectPlace) {
       onSelectPlace(candidate)
     }
-    // Also trigger global place event for MapView
     window.dispatchEvent(new CustomEvent('resq:select-place', { detail: candidate }))
   }
 
@@ -162,17 +184,135 @@ export function TopBar({ onSosOpen, showSearch = true, onSelectPlace }) {
               {item.label}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => cx(styles.navLink, isActive && styles.navLinkActive)}
+            >
+              Admin
+            </NavLink>
+          )}
         </nav>
+
+        {/* Operational actions for Operator & Admin */}
+        {canEdit && (
+          <button
+            type="button"
+            className={styles.reportDamageBtn}
+            onClick={() => setIsReportOpen(true)}
+            title="Report Flood, Blocked Road, Damaged Bridge, or Convoy"
+          >
+            <Plus size={14} />
+            <span>Report Damage</span>
+          </button>
+        )}
+
+        {/* Read-Only badge for Viewer */}
+        {isViewer && (
+          <div className={styles.viewerObserverPill} title="Read-Only Observer Access">
+            <Eye size={12} />
+            <span>Observer</span>
+          </div>
+        )}
 
         <button type="button" className={styles.iconBtn} aria-label="Notifications" title="Disaster Bulletins">
           <Bell size={17} />
           <span className={styles.alertDot} />
         </button>
 
-        <Button variant="emergency" icon={Siren} onClick={onSosOpen} className={styles.sos}>
-          <span className={styles.sosLabel}>RESQ SOS</span>
-        </Button>
+        {/* User Profile Control or Sign In Button */}
+        {user ? (
+          <button
+            type="button"
+            className={styles.userControl}
+            onClick={() => setIsProfileOpen(true)}
+            title="Open Personnel Command Profile"
+            aria-label="User Profile"
+          >
+            <div className={styles.userAvatarCircle}>
+              {user.profile_photo ? (
+                <img
+                  src={user.profile_photo}
+                  alt={user.name}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                user.name
+                  ? user.name
+                      .split(' ')
+                      .filter(Boolean)
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()
+                  : 'US'
+              )}
+            </div>
+            <div className={styles.userInfoCol}>
+              <span className={styles.userNameHeader}>{user.name}</span>
+              <span className={styles.userUsernameHeader}>
+                {user.username ? (user.username.startsWith('@') ? user.username : `@${user.username}`) : user.role}
+              </span>
+            </div>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.signInBtn}
+            onClick={() => openAuthModal('login')}
+            title="Sign In to RESQ Command Center"
+            aria-label="Sign In"
+          >
+            <LogIn size={13} />
+            <span>Sign In</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={styles.sos}
+          onClick={() => {
+            if (onSosOpen) onSosOpen()
+            if (!user) {
+              openAuthModal('login')
+            } else {
+              setIsSosOpen(true)
+            }
+          }}
+          title="Broadcast Emergency Disaster Alert"
+          aria-label="Emergency Alert"
+        >
+          <span className={styles.sosDot} />
+          <Radio size={14} />
+          <span className={styles.sosLabel}>Emergency Alert</span>
+        </button>
       </div>
+
+      {/* In-Dashboard Authentication Modal */}
+      <AuthModal />
+
+      {/* Profile & Security Drawer */}
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
+
+      {/* Operational Incident & Convoy Dispatch Modal */}
+      <DamageReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        onSubmitted={() => {
+          window.dispatchEvent(new CustomEvent('resq:incident-reported'))
+        }}
+      />
+
+      {/* Emergency Broadcast Confirmation Modal */}
+      <EmergencyBroadcastModal
+        isOpen={isSosOpen}
+        onClose={() => setIsSosOpen(false)}
+      />
     </header>
   )
 }
+
+export default TopBar
